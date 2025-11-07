@@ -6,14 +6,19 @@ import 'package:jalali_table_calendar_plus/Utils/holy_day.dart';
 import 'package:jalali_table_calendar_plus/Utils/options.dart';
 import 'package:jalali_table_calendar_plus/Utils/event.dart';
 import 'package:shamsi_date/shamsi_date.dart';
+import 'package:jalali_table_calendar_plus/repositories/event_repository.dart';
 
 part 'package:jalali_table_calendar_plus/Utils/select_year_month.dart';
+part 'package:jalali_table_calendar_plus/Widget/select_year_month_dialog.dart';
 
 typedef OnDaySelected = void Function(DateTime day);
 typedef MarkerBuilder = Widget? Function(DateTime date, List<dynamic> events);
 typedef RangeDates = void Function(List<DateTime> dates);
 
 enum CalendarType { jalali, gregorian, hijri }
+
+// View type to allow layout adjustments (e.g., cell height for monthly view)
+enum CalendarViewType { schedule, monthly, weekly }
 
 String _convertToPersianNumbers(int number) {
   const Map<String, String> englishToPersian = {
@@ -206,7 +211,8 @@ class JalaliTableCalendar extends StatefulWidget {
     this.mainCalendar = CalendarType.jalali,
     this.subCalendarLeft,
     this.subCalendarRight,
-    this.showHeader = true,
+    // New: pass the view type to control layout specifics
+    this.viewType = CalendarViewType.schedule,
   });
 
   final TextDirection direction;
@@ -215,7 +221,7 @@ class JalaliTableCalendar extends StatefulWidget {
   final RangeDates? onRangeSelected;
   final Map<DateTime, List>? events;
   // New: list-based events with colors, id, times, isHoliday, etc.
-  final List<CalendarEvent>? calendarEvents;
+  final List<UserEvent>? calendarEvents;
   final bool range;
   final bool useOfficialHolyDays;
   final List<HolyDay> customHolyDays;
@@ -224,10 +230,36 @@ class JalaliTableCalendar extends StatefulWidget {
   final CalendarType mainCalendar;
   final CalendarType? subCalendarLeft;
   final CalendarType? subCalendarRight;
-  final bool showHeader;
+  // New: current view type (schedule/monthly/weekly)
+  final CalendarViewType viewType;
 
   @override
   JalaliTableCalendarState createState() => JalaliTableCalendarState();
+}
+
+extension JalaliTableCalendarStateExtension on JalaliTableCalendarState {
+  void jumpToPage(int page) {
+    _pageController.jumpToPage(page);
+  }
+
+  void jumpToToday() {
+    final now = DateTime.now();
+    final page = _calculateInitialPage(_convertToMainCalendar(now));
+    _pageController.jumpToPage(page);
+    // Update selected date
+    setState(() {
+      _selectedDate = _convertToMainCalendar(now);
+    });
+  }
+
+  void jumpToDate(DateTime date) {
+    final page = _calculateInitialPage(_convertToMainCalendar(date));
+    _pageController.jumpToPage(page);
+    // Update selected date
+    setState(() {
+      _selectedDate = _convertToMainCalendar(date);
+    });
+  }
 }
 
 class JalaliTableCalendarState extends State<JalaliTableCalendar> {
@@ -241,6 +273,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
 
   late PageController _pageController;
   late ThemeData themeData;
+
+  // Events repository for official holiday resolution
+  late final EventRepository _eventRepository;
+  bool _eventsLoaded = false;
 
   @override
   void initState() {
@@ -258,6 +294,17 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     }
     _pageController =
         PageController(initialPage: _calculateInitialPage(_selectedDate));
+
+    // Initialize events repository and load official events for holiday checks
+    _eventRepository = EventRepository();
+    _eventRepository.loadEvents().then((_) {
+      if (mounted) {
+        setState(() {
+          _eventsLoaded = true;
+        });
+      }
+    });
+
     super.initState();
   }
 
@@ -363,7 +410,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          if (widget.showHeader)
+          if (widget.option?.showHeader ?? true)
             _buildHeader(),
           _buildDaysOfWeek(),
           _buildCalendarPageView()
@@ -442,7 +489,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
             onTap: () async {
               int? newPage = await showDialog(
                 context: context,
-                builder: (_) => _SelectYearMonth(
+                builder: (_) => SelectYearMonth(
                   year: calendarYear,
                   month: calendarMonth,
                   direction: widget.direction,
@@ -483,20 +530,27 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     // Rotate titles so the header starts at the configured weekday
     final List<String> rotated = _rotateWeekdayTitles(titles, start);
 
-    // Friday is base index 6 in Saturday-first arrays; compute its index after rotation
-    final int fridayIndex = (6 - _baseIndexForWeekStart(start) + 7) % 7;
+    // Get weekend days for highlighting
+    final List<int> weekendDays = widget.option?.weekendDays ?? _getDefaultWeekendDays();
+    // Convert weekend days to indices in the rotated array
+    final List<int> weekendIndices = weekendDays.map((weekday) {
+      // Convert weekday (1=Monday..7=Sunday) to base index (0=Saturday..6=Friday)
+      final int baseIndex = (weekday - 6 + 7) % 7; // Saturday=0, Sunday=1, Monday=2, ..., Friday=6
+      // Apply rotation to get the actual index in the displayed array
+      return (baseIndex - _baseIndexForWeekStart(start) + 7) % 7;
+    }).toList();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: List.generate(7, (index) {
-        final Color? fridayColor = index == fridayIndex ? themeData.primaryColor : null;
+        final Color? weekendColor = weekendIndices.contains(index) ? themeData.primaryColor : null;
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 5.0),
           child: Center(
             child: Text(
               rotated[index],
-              style: widget.option?.daysOfWeekStyle?.copyWith(color: fridayColor) ??
-                  TextStyle(color: fridayColor),
+              style: widget.option?.daysOfWeekStyle?.copyWith(color: weekendColor) ??
+                  TextStyle(color: weekendColor),
             ),
           ),
         );
@@ -505,8 +559,31 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
 
   Widget _buildCalendarPageView() {
+    // Dynamically compute height for monthly view so the entire month grid fits without vertical scrolling.
+    double _computeHeightForCurrentPage() {
+      if (widget.viewType != CalendarViewType.monthly) {
+        return 356; // default height for non-monthly views
+      }
+      try {
+        final dynamic date = _selectedPage;
+        final int daysInMonth = _getDaysInMonth(date);
+        final int startingWeekday = _getStartingWeekday(date, widget.mainCalendar);
+        final int slots = daysInMonth + (startingWeekday - 1);
+        final int rows = ((slots + 6) ~/ 7); // ceil(slots / 7)
+        const double cellExtent = 106; // must match GridView mainAxisExtent for monthly
+        const double rowSpacing = 0; // no spacing between rows
+        final double height = rows * cellExtent + (rows - 1) * rowSpacing;
+        return height;
+      } catch (e) {
+        debugPrint('ERROR: _computeHeightForCurrentPage failed: $e');
+        return 356;
+      }
+    }
+
+    final double height = _computeHeightForCurrentPage();
+
     return SizedBox(
-      height: 350,
+      height: height,
       child: PageView.builder(
         itemCount: _getPageCount(),
         controller: _pageController,
@@ -700,79 +777,107 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
 
   Widget _buildGridView(
       int year, int month, int daysInMonth, int startingWeekday) {
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 7, mainAxisSpacing: 5, mainAxisExtent: 64),
-      itemCount: daysInMonth + (startingWeekday - 1),
-      shrinkWrap: true,
-      itemBuilder: (context, index) {
-        if (index < startingWeekday - 1) {
-          return Container(
-            height: 100,
-          ); // Empty cell
-        } else {
-          int day = index - (startingWeekday - 2);
-          if (day > daysInMonth) {
-            day = daysInMonth;
-          }
-          dynamic date;
-          try {
-            date = _createDateFromMainCalendar(year, month, day);
-          } catch (e) {
-            debugPrint('ERROR: _buildGridView failed to create date: $e');
-            // Fallback to current date
-            date = _convertToMainCalendar(DateTime.now());
-          }
-          
-          bool isSelected = _isSelectedDay(date);
-          bool isToday = _isToday(date);
-          bool isHolyDay = _isHolyDay(date);
-          DateTime dateTime;
-          try {
-            dateTime = _getDateTimeFromCalendar(date);
-          } catch (e) {
-            debugPrint('ERROR: _buildGridView failed to get DateTime: $e');
-            dateTime = DateTime.now();
-          }
-          
-          Widget? marker = widget.marker != null
-              ? widget.marker!(dateTime, dayEvents(dateTime))
-              : null;
-          // Build default event dots only when no custom marker provided
-          Widget? eventDots = marker == null ? _buildEventDots(dateTime) : null;
-
-          final styleColor = isToday && !isSelected
-              ? widget.option?.currentDayColor ?? themeData.primaryColorDark
-              : isSelected
-                  ? widget.option?.selectedDayColor ??
-                      null
-                  : _isFriday(date) || isHolyDay
-                      ? themeData.primaryColor
-                      : null;
-          return Stack(
-            children: [
-              if (marker == null && eventDots != null) eventDots,
-              GestureDetector(
-                onTap: () {
-                  if (widget.range) {
-                    setRange(date);
-                  }
-                  if (widget.onDaySelected != null) {
-                    widget.onDaySelected!(dateTime);
-                  }
-                  setState(() {
-                    _selectedDate = date;
-                  });
-                },
-                child: isSelected
-                    ? _buildLiquidGlassSelectedDay(date, styleColor)
-                    : _buildDayCellWithSecondaryCalendars(date, styleColor),
+    int slots = daysInMonth + (startingWeekday - 1);
+    int numRows = ((slots + 6) ~/ 7);
+    double cellHeight = widget.viewType == CalendarViewType.monthly ? 106 : 68;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(numRows, (rowIndex) {
+        return Container(
+          height: cellHeight,
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: const Color.fromARGB(255, 220, 223, 228).withOpacity(0.2),
+                width: 1.5,
               ),
-              if (marker != null) marker,
-            ],
-          );
-        }
-      },
+            ),
+          ),
+          child: Padding(padding: EdgeInsetsGeometry.only(bottom: 6),child: Row(
+            children: List.generate(7, (colIndex) {
+              int index = rowIndex * 7 + colIndex;
+              if (index < startingWeekday - 1 || index >= slots) {
+                return Expanded(child: Container());
+              } else {
+                int day = index - (startingWeekday - 2);
+                dynamic date;
+                try {
+                  date = _createDateFromMainCalendar(year, month, day);
+                } catch (e) {
+                  debugPrint('ERROR: _buildGridView failed to create date: $e');
+                  // Fallback to current date
+                  date = _convertToMainCalendar(DateTime.now());
+                }
+
+                bool isSelected = _isSelectedDay(date);
+                bool isToday = _isToday(date);
+                bool isHolyDay = _isHolyDay(date);
+                DateTime dateTime;
+                try {
+                  dateTime = _getDateTimeFromCalendar(date);
+                } catch (e) {
+                  debugPrint('ERROR: _buildGridView failed to get DateTime: $e');
+                  dateTime = DateTime.now();
+                }
+
+                // Custom marker receives events from the new calendarEvents API if available;
+                // otherwise fallback to legacy Map-based events.
+                final List<dynamic> markerData = (widget.calendarEvents != null)
+                    ? _eventsOnDay(dateTime)
+                    : dayEvents(dateTime);
+                Widget? marker = widget.marker != null
+                    ? widget.marker!(dateTime, markerData)
+                    : null;
+                // Ensure custom marker participates in Stack layout. If it isn't already a Positioned,
+                // expand it to the cell bounds so layout constraints are tight.
+                if (marker != null && marker is! Positioned) {
+                  marker = Positioned.fill(child: marker);
+                }
+                // Default event rendering when no custom marker provided
+                Widget? eventWidget;
+                if (marker == null) {
+                  if (widget.viewType == CalendarViewType.monthly) {
+                    eventWidget = _buildEventChips(dateTime);
+                  } else {
+                    eventWidget = _buildEventDots(dateTime);
+                  }
+                }
+
+                final styleColor = isToday && !isSelected
+                    ? widget.option?.currentDayColor ?? themeData.primaryColorDark
+                    : isSelected
+                        ? widget.option?.selectedDayColor ??
+                            null
+                        : _isWeekend(date) || isHolyDay
+                            ? themeData.primaryColor
+                            : null;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (widget.range) {
+                        setRange(date);
+                      }
+                      if (widget.onDaySelected != null) {
+                        widget.onDaySelected!(dateTime);
+                      }
+                      setState(() {
+                        _selectedDate = date;
+                      });
+                    },
+                    child: Stack(
+                      children: [
+                        if (marker == null && eventWidget != null) eventWidget,
+                        _buildDayCellWithSecondaryCalendars(date, styleColor, isSelected),
+                        if (marker != null) marker,
+                      ],
+                    ),
+                  ),
+                );
+              }
+            }),
+          )),
+        );
+      }),
     );
   }
   
@@ -865,14 +970,25 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     return result;
   }
   
-  bool _isFriday(dynamic date) {
+  bool _isWeekend(dynamic date) {
     try {
       DateTime dateTime = _getDateTimeFromCalendar(date);
-      // In Dart, Friday is weekday 5 (1=Monday, 7=Sunday)
-      return dateTime.weekday == 5;
+      // Get weekend days from options or default based on calendar type
+      List<int> weekendDays = widget.option?.weekendDays ?? _getDefaultWeekendDays();
+      return weekendDays.contains(dateTime.weekday);
     } catch (e) {
-      debugPrint('ERROR: _isFriday failed: $e');
-      return false; // Default to not Friday if there's an error
+      debugPrint('ERROR: _isWeekend failed: $e');
+      return false; // Default to not weekend if there's an error
+    }
+  }
+
+  List<int> _getDefaultWeekendDays() {
+    switch (widget.mainCalendar) {
+      case CalendarType.jalali:
+      case CalendarType.hijri:
+        return [5]; // Friday
+      case CalendarType.gregorian:
+        return [7]; // Sunday
     }
   }
 
@@ -889,20 +1005,22 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
 
   // New: collect events for a specific local DateTime day
-  List<CalendarEvent> _eventsOnDay(DateTime date) {
+  List<UserEvent> _eventsOnDay(DateTime date) {
     try {
       if (widget.calendarEvents == null || widget.calendarEvents!.isEmpty) {
-        return const <CalendarEvent>[];
+        return const <UserEvent>[];
       }
       final day = DateTime(date.year, date.month, date.day);
       return widget.calendarEvents!.where((e) => e.occursOn(day)).toList();
     } catch (e) {
       debugPrint('ERROR: _eventsOnDay failed: $e');
-      return const <CalendarEvent>[];
+      return const <UserEvent>[];
     }
   }
 
-  // New: default marker showing up to 6 small colored dots centered at the bottom
+  // Default marker when no custom marker is supplied.
+  // For monthly view: render stacked chips with event titles.
+  // For other views: render up to 6 small colored dots centered at the bottom.
   Widget? _buildEventDots(DateTime date) {
     final events = _eventsOnDay(date);
     if (events.isEmpty) return null;
@@ -917,7 +1035,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(visible.length, (i) {
-          final color = visible[i].color;
+          final color = visible[i].userEventColor;
           return Container(
             width: 7,
             height: 7,
@@ -934,6 +1052,92 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
               ],
             ),
           );
+        }),
+      ),
+    );
+  }
+
+  // Monthly view event chips: vertical list of rounded labels under the day number.
+  // Shows up to 4 events to fit the 100px cell height. Overflow is truncated.
+  Widget? _buildEventChips(DateTime date) {
+    final events = _eventsOnDay(date);
+    if (events.isEmpty) return null;
+
+    final isSingleEvent = events.length == 1;
+    final visible = isSingleEvent ? events.take(1).toList() : events.take(2).toList();
+
+    return Positioned(
+      top: 54, // below day number and secondary calendar texts
+      left: 4,
+      right: 4,
+      bottom: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        children: List.generate(visible.length, (i) {
+          final e = visible[i];
+          final bg = e.userEventColor.withOpacity(0.90);
+          final on = (bg.computeLuminance() < 0.5) ? Colors.white : Colors.black87;
+          return isSingleEvent
+              ? Expanded(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: e.userEventColor.withOpacity(0.35),
+                          blurRadius: 6,
+                          spreadRadius: 0.3,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      e.userEventTitle,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 3,
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: on,
+                        fontFamily: 'IRANSansXVF',
+                        fontWeight: FontWeight.w700,
+                        height: 1.5,
+                        letterSpacing: -0.0625,
+                      ),
+                    ),
+                  ),
+                )
+              : Container(
+                  margin: const EdgeInsets.only(top: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(32),
+                    boxShadow: [
+                      BoxShadow(
+                        color: e.userEventColor.withOpacity(0.35),
+                        blurRadius: 6,
+                        spreadRadius: 0.3,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    e.userEventTitle,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: on,
+                      fontFamily: 'IRANSansXFaNum',
+                      fontWeight: FontWeight.w500,
+                      height: 2.0,
+                      letterSpacing: 0.0,
+                    ),
+                  ),
+                );
         }),
       ),
     );
@@ -1014,6 +1218,16 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
 
   bool _isHolyDay(dynamic date) {
     try {
+      // Prefer official events from repository when enabled and loaded
+      final DateTime dt = _getDateTimeFromCalendar(date);
+      if (widget.useOfficialHolyDays && _eventsLoaded) {
+        final events = _eventRepository.getEventsForDate(date: dt);
+        if (events.any((e) => e.holiday)) {
+          return true;
+        }
+      }
+
+      // Fallback: static built-in + custom holy days
       List<HolyDay> holyDays = [
         HolyDay(month: 01, day: 1),
         HolyDay(month: 01, day: 2),
@@ -1025,6 +1239,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         HolyDay(month: 03, day: 15),
       ];
       holyDays.addAll(widget.customHolyDays);
+
       for (HolyDay holyDay in holyDays) {
         if ((holyDay.year == 0 || holyDay.year == _getYearFromCalendar(date)) &&
             holyDay.month == _getMonthFromCalendar(date) &&
@@ -1117,135 +1332,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     }
   }
 
-  Widget _buildLiquidGlassSelectedDay(dynamic date, Color? styleColor) {
-    bool isDark = themeData.brightness == Brightness.dark;
-    DateTime dateTime;
-    try {
-      dateTime = _getDateTimeFromCalendar(date);
-    } catch (e) {
-      debugPrint('ERROR: _buildLiquidGlassSelectedDay failed to get DateTime: $e');
-      dateTime = DateTime.now();
-    }
-    
-    // Get secondary calendar dates for selected day
-    String? leftCalendarText;
-    String? rightCalendarText;
-    
-    // Only show secondary calendar text if the calendar type is not null
-    if (widget.subCalendarLeft != null) {
-      try {
-        leftCalendarText = _getSecondaryCalendarDay(dateTime, widget.subCalendarLeft!);
-      } catch (e) {
-        debugPrint('ERROR: _buildLiquidGlassSelectedDay failed to get left calendar: $e');
-      }
-    }
-    
-    // Only show secondary calendar text if the calendar type is not null
-    if (widget.subCalendarRight != null) {
-      try {
-        rightCalendarText = _getSecondaryCalendarDay(dateTime, widget.subCalendarRight!);
-      } catch (e) {
-        debugPrint('ERROR: _buildLiquidGlassSelectedDay failed to get right calendar: $e');
-      }
-    }
-    
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 5,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(18),topRight: Radius.circular(26),bottomRight: Radius.circular(18),bottomLeft: Radius.circular(26)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: isDark
-                            ? [
-                          Colors.white.withValues(alpha: 0.05),
-                          Colors.white.withValues(alpha: 0.08),
-                        ]
-                            : [
-                          Colors.white.withValues(alpha: 0.05),
-                          Colors.white.withValues(alpha: 0.08),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: isDark
-                              ? Colors.black.withValues(alpha: 0.05)
-                              : Colors.white.withValues(alpha: 0.05),
-                          offset: const Offset(0, 4),
-                          blurRadius: 12,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Text(
-                        convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
-                        style: widget.option?.daysStyle
-                                ?.copyWith(color: styleColor) ??
-                            TextStyle(color: styleColor),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (leftCalendarText != null)
-            Positioned(
-              bottom: 8,
-              left: 7,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  leftCalendarText!,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: styleColor,
-                  ),
-                ),
-              ),
-            ),
-          if (rightCalendarText != null)
-            Positioned(
-              bottom: 8,
-              right: 7,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  rightCalendarText!,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: styleColor,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDayCellWithSecondaryCalendars(dynamic date, Color? styleColor) {
+  Widget _buildDayCellWithSecondaryCalendars(dynamic date, Color? styleColor, [bool isSelected = false]) {
     debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars called with date: $date, type: ${date.runtimeType}');
     DateTime dateTime;
     try {
@@ -1282,58 +1369,183 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
       }
     }
     
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: 10,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
-                style: widget.option?.daysStyle
-                        ?.copyWith(color: styleColor) ??
-                    TextStyle(color: styleColor),
-              ),
-            ),
-          ),
-          if (leftCalendarText != null)
+    if (isSelected) {
+      bool isDark = themeData.brightness == Brightness.dark;
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          children: [
             Positioned(
-              bottom: 6,
-              left: 7,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  leftCalendarText!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: styleColor,
+              top: 5,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.only(topLeft: Radius.circular(18),topRight: Radius.circular(26),bottomRight: Radius.circular(18),bottomLeft: Radius.circular(26)),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    child: Container(
+                      width: 35,
+                      height: 35,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isDark
+                              ? [
+                            Colors.white.withValues(alpha: 0.05),
+                            Colors.white.withValues(alpha: 0.08),
+                          ]
+                              : [
+                            Colors.white.withValues(alpha: 0.05),
+                            Colors.white.withValues(alpha: 0.08),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark
+                                ? Colors.black.withValues(alpha: 0.05)
+                                : Colors.white.withValues(alpha: 0.05),
+                            offset: const Offset(0, 4),
+                            blurRadius: 12,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
+                          style: widget.option?.daysStyle
+                                  ?.copyWith(
+                                    color: styleColor,
+                                    fontFamily: 'IRANSansXFaNum',
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 18,
+                                  ) ??
+                              TextStyle(
+                                color: styleColor,
+                                fontFamily: 'IRANSansXFaNum',
+                                fontWeight: FontWeight.w600,
+                                fontSize: 18,
+                              ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          if (rightCalendarText != null)
-            Positioned(
-              bottom: 6,
-              right: 7,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: Text(
-                  rightCalendarText!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: styleColor,
+            if (leftCalendarText != null)
+              Positioned(
+                top: 38,
+                left: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    leftCalendarText!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: styleColor,
+                      fontFamily: 'IRANSansXFaNum',
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
                   ),
                 ),
               ),
+            if (rightCalendarText != null)
+              Positioned(
+                top: 38,
+                right: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    rightCalendarText!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: styleColor,
+                      fontFamily: 'IRANSansXFaNum',
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 10,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Text(
+                  convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
+                  style: widget.option?.daysStyle
+                          ?.copyWith(
+                            color: styleColor,
+                            fontFamily: 'IRANSansXFaNum',
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                          ) ??
+                      TextStyle(
+                        color: styleColor,
+                        fontFamily: 'IRANSansXFaNum',
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                        height: 1.27,
+                      ),
+                ),
+              ),
             ),
-        ],
-      ),
-    );
+            if (leftCalendarText != null)
+              Positioned(
+                top: 38,
+                left: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    leftCalendarText!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: styleColor,
+                    ),
+                  ),
+                ),
+              ),
+            if (rightCalendarText != null)
+              Positioned(
+                top: 38,
+                right: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    rightCalendarText!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: styleColor,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
   }
   
   String _getSecondaryCalendarDay(DateTime dateTime, CalendarType calendarType) {

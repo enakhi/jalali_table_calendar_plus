@@ -1,9 +1,9 @@
 part of 'package:jalali_table_calendar_plus/Widget/table_calendar.dart';
 
-enum _SelectMode { year, month }
+enum SelectMode { year, month }
 
-class _SelectYearMonth extends StatefulWidget {
-  const _SelectYearMonth(
+class SelectYearMonth extends StatefulWidget {
+  const SelectYearMonth(
       {required this.month, required this.year, required this.direction, required this.mainCalendar});
 
   final int year;
@@ -12,10 +12,10 @@ class _SelectYearMonth extends StatefulWidget {
   final CalendarType mainCalendar;
 
   @override
-  State<_SelectYearMonth> createState() => _SelectYearMonthState();
+  State<SelectYearMonth> createState() => SelectYearMonthState();
 }
 
-class _SelectYearMonthState extends State<_SelectYearMonth> {
+class SelectYearMonthState extends State<SelectYearMonth> {
   late PageController _pageController;
   late int page;
   late int selectedYear;
@@ -33,7 +33,7 @@ class _SelectYearMonthState extends State<_SelectYearMonth> {
     'بهمن',
     'اسفند',
   ];
-  _SelectMode mode = _SelectMode.year;
+  SelectMode mode = SelectMode.year;
 
   @override
   void initState() {
@@ -77,7 +77,7 @@ class _SelectYearMonthState extends State<_SelectYearMonth> {
         child: SizedBox(
           height: height / 3.5,
           child: PageView.builder(
-            itemCount: mode == _SelectMode.year ? 17 : 1,
+            itemCount: mode == SelectMode.year ? 17 : 1,
             controller: _pageController,
             onPageChanged: (int page) {
               setState(() {
@@ -89,7 +89,7 @@ class _SelectYearMonthState extends State<_SelectYearMonth> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (_SelectMode.year == mode)
+                    if (SelectMode.year == mode)
                       IconButton(
                         icon: const Icon(Icons.chevron_left),
                         onPressed: () {
@@ -108,7 +108,7 @@ class _SelectYearMonthState extends State<_SelectYearMonth> {
                                 mainAxisExtent: 50),
                         itemCount: 12,
                         itemBuilder: (context, index) {
-                          if (_SelectMode.year == mode) {
+                          if (SelectMode.year == mode) {
                             int baseYear = widget.mainCalendar == CalendarType.jalali
                                 ? 1304
                                 : widget.mainCalendar == CalendarType.hijri
@@ -119,7 +119,7 @@ class _SelectYearMonthState extends State<_SelectYearMonth> {
                                 onTap: () {
                                   setState(() {
                                     selectedYear = year + index;
-                                    mode = _SelectMode.month;
+                                    mode = SelectMode.month;
                                   });
                                 },
                                 child: Center(
@@ -141,7 +141,7 @@ class _SelectYearMonthState extends State<_SelectYearMonth> {
                         },
                       ),
                     ),
-                    if (_SelectMode.year == mode)
+                    if (SelectMode.year == mode)
                       IconButton(
                         icon: const Icon(Icons.chevron_right),
                         onPressed: () {

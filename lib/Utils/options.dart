@@ -14,6 +14,7 @@ class JalaliTableCalendarOption {
   final List<String>? daysOfWeekTitles;
   final EdgeInsets? headerPadding;
   final WeekStartDay weekStartDay;
+  final List<int>? weekendDays;
 
   JalaliTableCalendarOption({
     this.daysOfWeekStyle,
@@ -27,6 +28,7 @@ class JalaliTableCalendarOption {
     this.daysOfWeekTitles,
     this.headerPadding,
     this.weekStartDay = WeekStartDay.saturday,
+    this.weekendDays,
   }) : assert(daysOfWeekTitles == null || daysOfWeekTitles.length == 7,
             "daysOfWeekTitles length must be 7");
 }

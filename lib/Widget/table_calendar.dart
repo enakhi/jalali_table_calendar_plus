@@ -14,6 +14,7 @@ part 'package:jalali_table_calendar_plus/Widget/select_year_month_dialog.dart';
 typedef OnDaySelected = void Function(DateTime day);
 typedef MarkerBuilder = Widget? Function(DateTime date, List<dynamic> events);
 typedef RangeDates = void Function(List<DateTime> dates);
+typedef OnPageRangeChanged = void Function(DateTime start, DateTime endExclusive);
 
 enum CalendarType { jalali, gregorian, hijri }
 
@@ -213,6 +214,10 @@ class JalaliTableCalendar extends StatefulWidget {
     this.subCalendarRight,
     // New: pass the view type to control layout specifics
     this.viewType = CalendarViewType.schedule,
+    // New: page range change callback (start, endExclusive)
+    this.onPageRangeChanged,
+    // New: header text change callback (month title and year/month)
+    this.onHeaderTextChanged,
   });
 
   final TextDirection direction;
@@ -232,7 +237,11 @@ class JalaliTableCalendar extends StatefulWidget {
   final CalendarType? subCalendarRight;
   // New: current view type (schedule/monthly/weekly)
   final CalendarViewType viewType;
-
+  // New: page range change listener
+  final OnPageRangeChanged? onPageRangeChanged;
+  /// Callback for header text (month title) changes. Provides (title, year, month) in mainCalendar.
+  final void Function(String title, int year, int month)? onHeaderTextChanged;
+ 
   @override
   JalaliTableCalendarState createState() => JalaliTableCalendarState();
 }
@@ -304,7 +313,35 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         });
       }
     });
-
+ 
+    // Emit initial header (month title/year/month) after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final dynamic dateObj = _selectedPage;
+        int y, m;
+        switch (widget.mainCalendar) {
+          case CalendarType.jalali:
+            y = dateObj.year;
+            m = dateObj.month;
+            break;
+          case CalendarType.hijri:
+            y = dateObj.hYear;
+            m = dateObj.hMonth;
+            break;
+          case CalendarType.gregorian:
+            y = dateObj.year;
+            m = dateObj.month;
+            break;
+        }
+        final monthNames = getMonthNames(widget.mainCalendar)[m - 1];
+        final title = '$monthNames $y';
+        widget.onHeaderTextChanged?.call(title, y, m);
+      } catch (e) {
+        debugPrint('ERROR: init header emit failed: $e');
+      }
+    });
+ 
     super.initState();
   }
 
@@ -543,14 +580,14 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: List.generate(7, (index) {
-        final Color? weekendColor = weekendIndices.contains(index) ? themeData.primaryColor : null;
+        final Color? weekendColor = weekendIndices.contains(index) ? themeData.colorScheme.primary : null;
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 5.0),
           child: Center(
             child: Text(
               rotated[index],
               style: widget.option?.daysOfWeekStyle?.copyWith(color: weekendColor) ??
-                  TextStyle(color: weekendColor),
+                  TextStyle(color: weekendColor,fontWeight: FontWeight.w600),
             ),
           ),
         );
@@ -588,11 +625,70 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         itemCount: _getPageCount(),
         controller: _pageController,
         onPageChanged: (int page) {
+          final dynamic dateObj = _getDateFromPage(page);
           setState(() {
-            var date = _getDateFromPage(page);
-            _selectedPage = date;
-            debugPrint('DEBUG: onPageChanged - page: $page, new date: $date, type: ${date.runtimeType}');
+            _selectedPage = dateObj;
+            debugPrint('DEBUG: onPageChanged - page: $page, new date: $dateObj, type: ${dateObj.runtimeType}');
           });
+          // Notify listener with visible page range (start..endExclusive)
+          try {
+            DateTime start;
+            DateTime endExclusive;
+            switch (widget.mainCalendar) {
+              case CalendarType.jalali:
+                // dateObj is Jalali(year, month, 1)
+                start = Jalali(dateObj.year, dateObj.month, 1).toDateTime();
+                final next = (dateObj.month < 12)
+                    ? Jalali(dateObj.year, dateObj.month + 1, 1)
+                    : Jalali(dateObj.year + 1, 1, 1);
+                endExclusive = next.toDateTime();
+                break;
+              case CalendarType.hijri:
+                // dateObj is HijriCalendar with hYear/hMonth
+                final int hy = dateObj.hYear;
+                final int hm = dateObj.hMonth;
+                start = HijriCalendar().hijriToGregorian(hy, hm, 1);
+                final int nextHm = hm < 12 ? hm + 1 : 1;
+                final int nextHy = hm < 12 ? hy : hy + 1;
+                endExclusive = HijriCalendar().hijriToGregorian(nextHy, nextHm, 1);
+                break;
+              case CalendarType.gregorian:
+                // dateObj is DateTime(year, month, 1)
+                start = DateTime(dateObj.year, dateObj.month, 1);
+                endExclusive = (dateObj.month < 12)
+                    ? DateTime(dateObj.year, dateObj.month + 1, 1)
+                    : DateTime(dateObj.year + 1, 1, 1);
+                break;
+            }
+            if (widget.onPageRangeChanged != null) {
+              widget.onPageRangeChanged!(start, endExclusive);
+            }
+          } catch (e) {
+            debugPrint('ERROR: onPageChanged range compute failed: $e');
+          }
+          // Emit header text (month title) for external header
+          try {
+            int y, m;
+            switch (widget.mainCalendar) {
+              case CalendarType.jalali:
+                y = dateObj.year;
+                m = dateObj.month;
+                break;
+              case CalendarType.hijri:
+                y = dateObj.hYear;
+                m = dateObj.hMonth;
+                break;
+              case CalendarType.gregorian:
+                y = dateObj.year;
+                m = dateObj.month;
+                break;
+            }
+            final monthNames = getMonthNames(widget.mainCalendar)[m - 1];
+            final title = '$monthNames $y';
+            widget.onHeaderTextChanged?.call(title, y, m);
+          } catch (e) {
+            debugPrint('ERROR: onPageChanged header emit failed: $e');
+          }
         },
         itemBuilder: (context, index) {
           debugPrint('DEBUG: PageView itemBuilder - index: $index');
@@ -844,12 +940,12 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                 }
 
                 final styleColor = isToday && !isSelected
-                    ? widget.option?.currentDayColor ?? themeData.primaryColorDark
+                    ? widget.option?.currentDayColor ?? themeData.colorScheme.primary
                     : isSelected
                         ? widget.option?.selectedDayColor ??
                             null
                         : _isWeekend(date) || isHolyDay
-                            ? themeData.primaryColor
+                            ? themeData.colorScheme.primary
                             : null;
                 return Expanded(
                   child: GestureDetector(
@@ -1018,127 +1114,278 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     }
   }
 
-  // Default marker when no custom marker is supplied.
-  // For monthly view: render stacked chips with event titles.
-  // For other views: render up to 6 small colored dots centered at the bottom.
-  Widget? _buildEventDots(DateTime date) {
-    final events = _eventsOnDay(date);
-    if (events.isEmpty) return null;
+    // Default marker when no custom marker is supplied.
+    // For monthly view: render stacked chips with event titles.
+    // For table/non-monthly views: show up to 4 items; when there are more than 4
+    // events, render the first 3 colored dots and a "+" as the 4th item.
+    // Special case: when there is exactly 1 event on the day (table/schedule views),
+    // render a horizontal line whose width represents the event duration within the day.
+    // Entire day => full width. Half-day => half width. Other durations proportional.
+    // The minimum bar width is not less than the dot size for visibility.
+    Widget? _buildEventDots(DateTime date) {
+      final events = _eventsOnDay(date);
+      if (events.isEmpty) return null;
 
-    // Limit dots to avoid overflow; show first 6
-    final visible = events.take(6).toList();
+      // Single-event rendering: proportional timeline bar
+      if (events.length == 1) {
+        final e = events.first;
+        return Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final double availRaw = constraints.maxWidth;
+                final double avail = (availRaw.isFinite && availRaw > 0) ? availRaw : 60.0;
+                const double barHeight = 6.0;
+                const double minBarWidth = 12.0; // >= dot diameter (7)
 
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(visible.length, (i) {
-          final color = visible[i].userEventColor;
-          return Container(
-            width: 7,
-            height: 7,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: color.withOpacity(0.35),
-                  blurRadius: 2,
-                  spreadRadius: 0.3,
-                ),
-              ],
+                // Compute start/duration within a 24h day in minutes
+                int startMin = 0;
+                int endMin = 24 * 60;
+
+                if (!e.isEntireday) {
+                  if (e.startTime != null) {
+                    startMin = e.startTime!.hour * 60 + e.startTime!.minute;
+                  }
+                  if (e.endTime != null) {
+                    endMin = e.endTime!.hour * 60 + e.endTime!.minute;
+                  }
+                  // Guard invalid ranges
+                  if (endMin <= startMin) {
+                    endMin = (startMin + 1).clamp(0, 24 * 60);
+                  }
+                }
+
+                final int duration = (endMin - startMin).clamp(1, 24 * 60);
+                double startFraction = (startMin / (24 * 60)).clamp(0.0, 1.0);
+                double widthFraction = (duration / (24 * 60)).clamp(0.0, 1.0);
+
+                double leftPx = avail * startFraction;
+                final double effectiveMin = minBarWidth <= avail ? minBarWidth : avail;
+                double widthPx = (avail * widthFraction).clamp(effectiveMin, avail);
+
+                // Clamp to the available width and keep minimum width visible
+                if (leftPx + widthPx > avail) {
+                  widthPx = avail - leftPx;
+                  if (widthPx < effectiveMin) {
+                    leftPx = (avail - effectiveMin).clamp(0.0, avail);
+                    widthPx = effectiveMin;
+                  }
+                }
+
+                // Ensure finite size for the positioned bar by constraining the Stack.
+                return SizedBox(
+                  width: avail,
+                  height: barHeight + 2,
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: leftPx,
+                        bottom: 1,
+                        child: Container(
+                          width: widthPx,
+                          height: barHeight,
+                          decoration: BoxDecoration(
+                            color: e.userEventColor,
+                            border: Border.all(color: e.userEventBorderColor, width: 1.0),
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: e.userEventColor.withOpacity(0.35),
+                                blurRadius: 3,
+                                spreadRadius: 0.3,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-          );
-        }),
-      ),
-    );
-  }
+          ),
+        );
+      }
+
+      // Multi-event rendering (existing dots behavior)
+      // Compute the day text color to match "+" color with day number color.
+      final bool isSelected = _isSelectedDay(date);
+      final bool isToday = _isToday(date);
+      final bool isHolyDay = _isHolyDay(date);
+      final Color? styleColor = isToday && !isSelected
+          ? widget.option?.currentDayColor ?? themeData.colorScheme.primary
+          : isSelected
+              ? widget.option?.selectedDayColor ?? null
+              : (_isWeekend(date) || isHolyDay)
+                  ? themeData.colorScheme.primary
+                  : null;
+      final Color plusColor = styleColor ??
+          (widget.option?.daysStyle?.color ??
+              (themeData.textTheme.bodyMedium?.color ?? Colors.black87));
+
+      const int maxVisibleItems = 4;
+      final bool showPlus = events.length > maxVisibleItems;
+      final int dotCount =
+          showPlus ? 3 : (events.length.clamp(0, maxVisibleItems));
+
+      final List<Widget> children = List<Widget>.generate(dotCount, (i) {
+        final color = events[i].userEventColor;
+        return Container(
+          width: 7,
+          height: 7,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(color: events[i].userEventBorderColor, width: 1.0),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.35),
+                blurRadius: 2,
+                spreadRadius: 0.3,
+              ),
+            ],
+          ),
+        );
+      });
+
+      if (showPlus) {
+        children.add(Container(
+          width: 9,
+          height: 9,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          alignment: Alignment.center,
+          child: Icon(Icons.add, size: 9, color: plusColor),
+        ));
+      }
+
+      return Positioned(
+        bottom: 0,
+        left: 0,
+        right: 0,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: children,
+        ),
+      );
+    }
 
   // Monthly view event chips: vertical list of rounded labels under the day number.
-  // Shows up to 4 events to fit the 100px cell height. Overflow is truncated.
+  // If there are more than 2 events, show the first 2 chips and add a "+(count-2)" badge.
   Widget? _buildEventChips(DateTime date) {
     final events = _eventsOnDay(date);
     if (events.isEmpty) return null;
 
-    final isSingleEvent = events.length == 1;
-    final visible = isSingleEvent ? events.take(1).toList() : events.take(2).toList();
+    final bool isSingleEvent = events.length == 1;
+    final List<UserEvent> visible = isSingleEvent ? events.take(1).toList() : events.take(2).toList();
+    final int overflowCount = isSingleEvent ? 0 : (events.length - 2);
 
     return Positioned(
       top: 54, // below day number and secondary calendar texts
       left: 4,
       right: 4,
       bottom: 0,
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        children: List.generate(visible.length, (i) {
-          final e = visible[i];
-          final bg = e.userEventColor.withOpacity(0.90);
-          final on = (bg.computeLuminance() < 0.5) ? Colors.white : Colors.black87;
-          return isSingleEvent
-              ? Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 0),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: e.userEventColor.withOpacity(0.35),
-                          blurRadius: 6,
-                          spreadRadius: 0.3,
+      child: Stack(
+        children: [
+          // Chips column
+          Column(
+            mainAxisSize: MainAxisSize.max,
+            children: List.generate(visible.length, (i) {
+              final e = visible[i];
+              final bg = e.userEventColor.withOpacity(0.90);
+              final on = (bg.computeLuminance() < 0.5) ? Colors.white : Colors.black87;
+              return isSingleEvent
+                  ? Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: bg,
+                          border: Border.all(color: e.userEventBorderColor, width: 1.0),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: e.userEventColor.withOpacity(0.35),
+                              blurRadius: 6,
+                              spreadRadius: 0.3,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Text(
-                      e.userEventTitle,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 3,
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: on,
-                        fontFamily: 'IRANSansXVF',
-                        fontWeight: FontWeight.w700,
-                        height: 1.5,
-                        letterSpacing: -0.0625,
+                        child: Text(
+                          e.userEventTitle,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 3,
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: on,
+                            fontFamily: 'IRANSansXVF',
+                            fontWeight: FontWeight.w700,
+                            height: 1.5,
+                            letterSpacing: -0.0625,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                )
-              : Container(
-                  margin: const EdgeInsets.only(top: 2),
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: bg,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: e.userEventColor.withOpacity(0.35),
-                        blurRadius: 6,
-                        spreadRadius: 0.3,
+                    )
+                  : Container(
+                      margin: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: bg,
+                        border: Border.all(color: e.userEventBorderColor, width: 1.0),
+                        borderRadius: BorderRadius.circular(32),
+                        boxShadow: [
+                          BoxShadow(
+                            color: e.userEventColor.withOpacity(0.35),
+                            blurRadius: 6,
+                            spreadRadius: 0.3,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Text(
+                        e.userEventTitle,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: on,
+                          fontFamily: 'IRANSansXFaNum',
+                          fontWeight: FontWeight.w500,
+                          height: 2.0,
+                          letterSpacing: 0.0,
+                        ),
+                      ),
+                    );
+            }),
+          ),
+          // Overflow indicator: "+(count-2)"
+          if (!isSingleEvent && overflowCount > 0)
+            Positioned(
+              right: 2,
+              bottom: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: themeData.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '+${convertNumbers(overflowCount, widget.mainCalendar)}',
+                  style: TextStyle(
+                    color: themeData.colorScheme.onPrimary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'IRANSansXFaNum',
                   ),
-                  child: Text(
-                    e.userEventTitle,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 8,
-                      color: on,
-                      fontFamily: 'IRANSansXFaNum',
-                      fontWeight: FontWeight.w500,
-                      height: 2.0,
-                      letterSpacing: 0.0,
-                    ),
-                  ),
-                );
-        }),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

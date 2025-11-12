@@ -9,26 +9,41 @@ Future<DateTime?> pickDate({
   DateTime? initialDate,
   bool useOfficialHolyDays = true,
   List<HolyDay> customHolyDays = const [],
+  CalendarType mainCalendar = CalendarType.jalali,
 }) async {
   DateTime? selectedDate = await showDialog<DateTime>(
     context: context,
-    builder: (_) => _TableCalendarPicker(direction, events, marker,
-        useOfficialHolyDays, customHolyDays, initialDate),
+    builder: (_) => _TableCalendarPicker(
+      direction,
+      events,
+      marker,
+      useOfficialHolyDays,
+      customHolyDays,
+      initialDate,
+      mainCalendar,
+    ),
   );
   return selectedDate;
 }
 
 class _TableCalendarPicker extends StatelessWidget {
-  const _TableCalendarPicker(this.direction, this.events, this.marker,
-      this.useOfficialHolyDays, this.customHolyDays, this.initialDate);
+  const _TableCalendarPicker(
+    this.direction,
+    this.events,
+    this.marker,
+    this.useOfficialHolyDays,
+    this.customHolyDays,
+    this.initialDate,
+    this.mainCalendar,
+  );
 
   final TextDirection direction;
-
   final Map<DateTime, List>? events;
   final DateTime? initialDate;
   final MarkerBuilder? marker;
   final bool useOfficialHolyDays;
   final List<HolyDay> customHolyDays;
+  final CalendarType mainCalendar;
 
   @override
   Widget build(BuildContext context) {
@@ -36,14 +51,14 @@ class _TableCalendarPicker extends StatelessWidget {
     double height = MediaQuery.of(context).size.height / 100;
     DateTime? selectedDate;
     return Dialog(
-      insetPadding:
-          EdgeInsets.symmetric(vertical: height * 25, horizontal: width * 5),
+      insetPadding: EdgeInsets.symmetric(vertical: height * 2, horizontal: width * 5),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(
+            SizedBox(
+              width: double.infinity,
               child: JalaliTableCalendar(
                 initialDate: initialDate,
                 direction: direction,
@@ -51,16 +66,19 @@ class _TableCalendarPicker extends StatelessWidget {
                 events: events,
                 useOfficialHolyDays: useOfficialHolyDays,
                 marker: marker,
+                mainCalendar: mainCalendar,
+                viewType: CalendarViewType.monthly,
                 onDaySelected: (date) {
                   selectedDate = date;
                 },
               ),
             ),
             ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context, selectedDate);
-                },
-                child: const Text('تایید'))
+              onPressed: () {
+                Navigator.pop(context, selectedDate);
+              },
+              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            )
           ],
         ),
       ),

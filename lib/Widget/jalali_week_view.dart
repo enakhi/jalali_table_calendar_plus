@@ -2,13 +2,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shamsi_date/shamsi_date.dart';
 import 'package:hijri/hijri_calendar.dart';
-import 'package:jalali_table_calendar_plus/Widget/table_calendar.dart' show CalendarType, convertNumbers, getMonthNames, getWeekdayNames;
+import 'package:jalali_table_calendar_plus/Widget/table_calendar.dart' show CalendarType, convertNumbers, getMonthNames, getWeekdayNames, OnPageRangeChanged;
 import 'package:jalali_table_calendar_plus/Utils/event.dart';
 import 'package:jalali_table_calendar_plus/Utils/options.dart';
 
 import 'package:jalali_table_calendar_plus/repositories/event_repository.dart';
 /// Weekly time-grid view (Jalali friendly)
-/// - Top row: All-day container (shows events with isHoliday == true or events with no time)
+/// - Top row: All-day container (shows events with isEntireDay == true or events with no time)
 /// - Left column: time labels
 /// - 7 day columns: time grid from dayStartTime to dayEndTime
 /// - Timed events are positioned by start/end within their day's column
@@ -25,6 +25,7 @@ class JalaliWeekView extends StatefulWidget {
     this.showHeader = true,
     this.showHeaderArrows = true,
     this.headerPadding = const EdgeInsets.all(16),
+    this.option,
     this.calendarEvents,
     this.dayStartTime,
     this.dayEndTime,
@@ -37,6 +38,10 @@ class JalaliWeekView extends StatefulWidget {
     this.allDayLabel = 'All Day',
     this.selectedDate,
     this.onDaySelected,
+    // New: page range change listener (start, endExclusive)
+    this.onPageRangeChanged,
+    // New: header text change listener
+    this.onHeaderTextChanged,
   });
 
   final TextDirection direction;
@@ -46,29 +51,36 @@ class JalaliWeekView extends StatefulWidget {
   final bool showHeader;
   final bool showHeaderArrows;
   final EdgeInsets headerPadding;
+  final JalaliTableCalendarOption? option;
   final List<UserEvent>? calendarEvents;
   final CalendarType? subCalendarLeft;
   final CalendarType? subCalendarRight;
-
+  
   /// Work day bounds (from app settings). Defaults to 08:00 - 18:00 if not provided.
   final TimeOfDay? dayStartTime;
   final TimeOfDay? dayEndTime;
-
+ 
   /// Layout tuning
   final double allDayRowHeight;
   final double hourRowHeight;
   final double timeColumnWidth;
   final double eventMinHeight;
-
+ 
   /// Localized labels
   final String allDayLabel;
-
+ 
   /// Selected date for highlighting
   final DateTime? selectedDate;
-
+ 
   /// Callback when a day is selected
   final void Function(DateTime)? onDaySelected;
-
+ 
+  /// Callback when visible week page changes (start..endExclusive)
+  final OnPageRangeChanged? onPageRangeChanged;
+ 
+  /// Callback for header text (month title) changes. Provides (title, year, month) in mainCalendar.
+  final void Function(String title, int year, int month)? onHeaderTextChanged;
+ 
   @override
   JalaliWeekViewState createState() => JalaliWeekViewState();
 }
@@ -78,10 +90,10 @@ extension JalaliWeekViewStateExtension on JalaliWeekViewState {
     final now = DateTime.now();
     jumpToDate(now);
   }
-
+ 
   void jumpToDate(DateTime date) {
-    final weekStart = _startOfWeek(date, widget.weekStartDay);
-    final initialWeekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), widget.weekStartDay);
+    final weekStart = _startOfWeek(date, _effectiveWeekStart);
+    final initialWeekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), _effectiveWeekStart);
     final weeksDiff = weekStart.difference(initialWeekStart).inDays ~/ 7;
     final page = 1000 + weeksDiff;
     _pageController.jumpToPage(page);
@@ -89,6 +101,12 @@ extension JalaliWeekViewStateExtension on JalaliWeekViewState {
     setState(() {
       _currentWeekStart = weekStart;
     });
+    // Emit range and header for programmatic jumps
+    final DateTime endExclusive = weekStart.add(const Duration(days: 7));
+    if (widget.onPageRangeChanged != null) {
+      widget.onPageRangeChanged!(weekStart, endExclusive);
+    }
+    _emitHeaderChange(weekStart);
   }
 }
 
@@ -100,18 +118,36 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
   late final EventRepository _eventRepository;
   bool _eventsLoaded = false;
 
+  // Effective values resolved from JalaliTableCalendarOption when provided
+  WeekStartDay get _effectiveWeekStart => widget.option?.weekStartDay ?? widget.weekStartDay;
+  bool get _effectiveShowHeader => widget.option?.showHeader ?? widget.showHeader;
+  bool get _effectiveShowHeaderArrows => widget.option?.showHeaderArrows ?? widget.showHeaderArrows;
+  EdgeInsets get _effectiveHeaderPadding => widget.option?.headerPadding ?? widget.headerPadding;
+  List<String>? get _customWeekTitles => widget.option?.daysOfWeekTitles;
+  List<int>? get _customWeekendDays => widget.option?.weekendDays;
+
   @override
   void initState() {
     super.initState();
-    _currentWeekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), widget.weekStartDay);
+    _currentWeekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), _effectiveWeekStart);
     _pageController = PageController(initialPage: 1000); // Start at a large page number for infinite scrolling
-
+   
     _eventRepository = EventRepository();
     _eventRepository.loadEvents().then((_) {
       if (mounted) {
         setState(() {
           _eventsLoaded = true;
         });
+      }
+    });
+ 
+    // Emit initial header and range after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _emitHeaderChange(_currentWeekStart);
+      final DateTime endExclusive = _currentWeekStart.add(const Duration(days: 7));
+      if (widget.onPageRangeChanged != null) {
+        widget.onPageRangeChanged!(_currentWeekStart, endExclusive);
       }
     });
   }
@@ -166,6 +202,59 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
       return false;
     }
   }
+ 
+  void _emitHeaderChange(DateTime weekStart) {
+    try {
+      final monthNames = getMonthNames(widget.mainCalendar);
+      final DateTime weekEnd = weekStart.add(const Duration(days: 6));
+
+      late final int startYear;
+      late final int startMonth;
+      late final int endYear;
+      late final int endMonth;
+
+      switch (widget.mainCalendar) {
+        case CalendarType.jalali:
+          final js = Jalali.fromDateTime(weekStart);
+          final je = Jalali.fromDateTime(weekEnd);
+          startYear = js.year;
+          startMonth = js.month;
+          endYear = je.year;
+          endMonth = je.month;
+          break;
+        case CalendarType.hijri:
+          final hs = HijriCalendar.fromDate(weekStart);
+          final he = HijriCalendar.fromDate(weekEnd);
+          startYear = hs.hYear;
+          startMonth = hs.hMonth;
+          endYear = he.hYear;
+          endMonth = he.hMonth;
+          break;
+        case CalendarType.gregorian:
+          startYear = weekStart.year;
+          startMonth = weekStart.month;
+          endYear = weekEnd.year;
+          endMonth = weekEnd.month;
+          break;
+      }
+
+      // Build a composite title when the visible week spans two months (or years)
+      String title;
+      if (startYear == endYear) {
+        if (startMonth == endMonth) {
+          title = '${monthNames[startMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)}';
+        } else {
+          title = '${monthNames[startMonth - 1]} – ${monthNames[endMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)}';
+        }
+      } else {
+        title =
+            '${monthNames[startMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)} – ${monthNames[endMonth - 1]} ${convertNumbers(endYear, widget.mainCalendar)}';
+      }
+
+      // Keep year/month payload based on the week start to preserve navigation semantics
+      widget.onHeaderTextChanged?.call(title, startYear, startMonth);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,15 +265,15 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.showHeader)
+          if (_effectiveShowHeader)
             Padding(
-              padding: widget.headerPadding,
+              padding: _effectiveHeaderPadding,
               child: Row(
-                mainAxisAlignment: widget.showHeaderArrows
+                mainAxisAlignment: _effectiveShowHeaderArrows
                     ? MainAxisAlignment.spaceBetween
                     : MainAxisAlignment.center,
                 children: [
-                  if (widget.showHeaderArrows)
+                  if (_effectiveShowHeaderArrows)
                     IconButton(
                       icon: const Icon(Icons.chevron_left),
                       onPressed: () {
@@ -198,7 +287,7 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
                     _getHeaderText(),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
-                  if (widget.showHeaderArrows)
+                  if (_effectiveShowHeaderArrows)
                     IconButton(
                       icon: const Icon(Icons.chevron_right),
                       onPressed: () {
@@ -215,16 +304,24 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
             child: PageView.builder(
               controller: _pageController,
               onPageChanged: (page) {
+                // Calculate new week start based on page offset
+                final int weekOffset = page - 1000;
+                final DateTime base = _startOfWeek(widget.initialDate ?? DateTime.now(), _effectiveWeekStart);
+                final DateTime weekStart = base.add(Duration(days: weekOffset * 7));
                 setState(() {
-                  // Calculate the week start based on the page offset from initial page
-                  final int weekOffset = page - 1000;
-                  _currentWeekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), widget.weekStartDay)
-                      .add(Duration(days: weekOffset * 7));
+                  _currentWeekStart = weekStart;
                 });
+                // Notify listener with week range (start..endExclusive)
+                final DateTime endExclusive = weekStart.add(const Duration(days: 7));
+                if (widget.onPageRangeChanged != null) {
+                  widget.onPageRangeChanged!(weekStart, endExclusive);
+                }
+                // Emit header month/year for outer header
+                _emitHeaderChange(weekStart);
               },
               itemBuilder: (context, pageIndex) {
                 final int weekOffset = pageIndex - 1000;
-                final DateTime weekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), widget.weekStartDay)
+                final DateTime weekStart = _startOfWeek(widget.initialDate ?? DateTime.now(), _effectiveWeekStart)
                     .add(Duration(days: weekOffset * 7));
                 final days = List.generate(7, (i) => weekStart.add(Duration(days: i)));
 
@@ -233,12 +330,14 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
                     _WeekDaysHeader(
                       mainCalendar: widget.mainCalendar,
                       direction: widget.direction,
-                      weekStartDay: widget.weekStartDay,
+                      weekStartDay: _effectiveWeekStart,
                       days: days,
                       timeColumnWidth: widget.timeColumnWidth,
                       theme: theme,
                       subCalendarLeft: widget.subCalendarLeft,
                       subCalendarRight: widget.subCalendarRight,
+                      customTitles: _customWeekTitles,
+                      customWeekendDays: _customWeekendDays,
                       selectedDate: widget.selectedDate,
                       onDaySelected: widget.onDaySelected,
                       isHolidayFn: _isHolidayFromRepoOrFallback,
@@ -275,25 +374,49 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
 
   String _getHeaderText() {
     final monthNames = getMonthNames(widget.mainCalendar);
-    late final int headerYear;
-    late final int headerMonth;
+
+    final DateTime start = _currentWeekStart;
+    final DateTime end = _currentWeekStart.add(const Duration(days: 6));
+
+    late final int startYear;
+    late final int startMonth;
+    late final int endYear;
+    late final int endMonth;
+
     switch (widget.mainCalendar) {
       case CalendarType.jalali:
-        final j = Jalali.fromDateTime(_currentWeekStart);
-        headerYear = j.year;
-        headerMonth = j.month;
+        final js = Jalali.fromDateTime(start);
+        final je = Jalali.fromDateTime(end);
+        startYear = js.year;
+        startMonth = js.month;
+        endYear = je.year;
+        endMonth = je.month;
         break;
       case CalendarType.hijri:
-        final h = HijriCalendar.fromDate(_currentWeekStart);
-        headerYear = h.hYear;
-        headerMonth = h.hMonth;
+        final hs = HijriCalendar.fromDate(start);
+        final he = HijriCalendar.fromDate(end);
+        startYear = hs.hYear;
+        startMonth = hs.hMonth;
+        endYear = he.hYear;
+        endMonth = he.hMonth;
         break;
       case CalendarType.gregorian:
-        headerYear = _currentWeekStart.year;
-        headerMonth = _currentWeekStart.month;
+        startYear = start.year;
+        startMonth = start.month;
+        endYear = end.year;
+        endMonth = end.month;
         break;
     }
-    return '${monthNames[headerMonth - 1]} ${convertNumbers(headerYear, widget.mainCalendar)}';
+
+    if (startYear == endYear) {
+      if (startMonth == endMonth) {
+        return '${monthNames[startMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)}';
+      } else {
+        return '${monthNames[startMonth - 1]} – ${monthNames[endMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)}';
+      }
+    } else {
+      return '${monthNames[startMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)} – ${monthNames[endMonth - 1]} ${convertNumbers(endYear, widget.mainCalendar)}';
+    }
   }
 
 }
@@ -308,6 +431,8 @@ class _WeekDaysHeader extends StatelessWidget {
     required this.theme,
     this.subCalendarLeft,
     this.subCalendarRight,
+    this.customTitles,
+    this.customWeekendDays,
     this.selectedDate,
     this.onDaySelected,
     required this.isHolidayFn,
@@ -321,13 +446,15 @@ class _WeekDaysHeader extends StatelessWidget {
   final ThemeData theme;
   final CalendarType? subCalendarLeft;
   final CalendarType? subCalendarRight;
+  final List<String>? customTitles;
+  final List<int>? customWeekendDays;
   final DateTime? selectedDate;
   final void Function(DateTime)? onDaySelected;
   final bool Function(DateTime) isHolidayFn;
 
   @override
   Widget build(BuildContext context) {
-    final titles = getWeekdayNames(mainCalendar, direction); // Base Saturday-first
+    final titles = customTitles ?? getWeekdayNames(mainCalendar, direction); // Base Saturday-first
     final rotated = _rotateWeekdayTitles(titles, weekStartDay);
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -352,7 +479,7 @@ class _WeekDaysHeader extends StatelessWidget {
               };
               final String? leftText = subCalendarLeft == null ? null : _secondaryDay(d, subCalendarLeft!);
               final String? rightText = subCalendarRight == null ? null : _secondaryDay(d, subCalendarRight!);
-              final styleColor = isWeekend || isHoliday ? theme.primaryColor : null;
+              final styleColor = isWeekend || isHoliday ? theme.colorScheme.primary : null;
               return Container(
                 width: dayColumnWidth,
                 child: Padding(
@@ -467,17 +594,9 @@ class _WeekDaysHeader extends StatelessWidget {
 
   // Check if a date is a weekend
   bool _isWeekend(DateTime date) {
-    // Default weekend days based on calendar type
-    List<int> weekendDays;
-    switch (mainCalendar) {
-      case CalendarType.jalali:
-      case CalendarType.hijri:
-        weekendDays = [5]; // Friday
-        break;
-      case CalendarType.gregorian:
-        weekendDays = [7]; // Sunday
-        break;
-    }
+    // Weekend days can be customized via option; otherwise use defaults per calendar
+    List<int> weekendDays = customWeekendDays ??
+        (mainCalendar == CalendarType.gregorian ? [7] : [5]); // Jalali/Hijri: Friday (5), Gregorian: Sunday (7)
     return weekendDays.contains(date.weekday);
   }
 
@@ -522,21 +641,50 @@ class _WeekTimeGrid extends StatelessWidget {
     final int totalMinutes = endMinutes - startMinutes;
     final int hours = (totalMinutes / 60).ceil();
 
-    // Split events: all-day vs timed
+    // Split events: all-day vs timed, with support for multi-day spans
     final List<List<UserEvent>> allDayByDay = List.generate(7, (_) => []);
-    final List<List<UserEvent>> timedByDay = List.generate(7, (_) => []);
+    final List<List<_Timed>> timedSegmentsByDay = List.generate(7, (_) => []);
+    bool _sameYMD(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
     for (int di = 0; di < 7; di++) {
       final d = days[di];
       final dayEvents = calendarEvents.where((e) => e.occursOn(d)).toList();
+
       for (final e in dayEvents) {
-        if (e.isHoliday || e.startTime == null || e.endTime == null) {
+        // Entire day or missing times -> treat as all-day for rendering
+        if (e.isEntireday || e.startTime == null || e.endTime == null) {
           allDayByDay[di].add(e);
+          continue;
+        }
+
+        final bool hasEndDate = e.userEventEndDate != null && !_sameYMD(e.userEventDate, e.userEventEndDate!);
+        if (!hasEndDate) {
+          // Single-day timed event
+          timedSegmentsByDay[di].add(_Timed(e, e.startTime!, e.endTime!));
+          continue;
+        }
+
+        // Multi-day timed event: split per-day segment
+        final bool isStartDay = _sameYMD(d, e.userEventDate);
+        final bool isEndDay = _sameYMD(d, e.userEventEndDate!);
+
+        if (isStartDay && isEndDay) {
+          // Shouldn't happen due to hasEndDate, but safe-guard
+          timedSegmentsByDay[di].add(_Timed(e, e.startTime!, e.endTime!));
+        } else if (isStartDay) {
+          // From event start until end of day
+          timedSegmentsByDay[di].add(_Timed(e, e.startTime!, const TimeOfDay(hour: 23, minute: 59)));
+        } else if (isEndDay) {
+          // From beginning of day until event end
+          timedSegmentsByDay[di].add(_Timed(e, const TimeOfDay(hour: 0, minute: 0), e.endTime!));
         } else {
-          timedByDay[di].add(e);
+          // Middle days: render as all-day chip in the all-day row
+          allDayByDay[di].add(e);
         }
       }
-      // Sort timed by start time
-      timedByDay[di].sort((a, b) => _toMinutes(a.startTime!).compareTo(_toMinutes(b.startTime!)));
+
+      // Sort timed segments by their per-day segment start time
+      timedSegmentsByDay[di].sort((a, b) => _toMinutes(a.start).compareTo(_toMinutes(b.start)));
     }
 
     final double totalHeight = allDayRowHeight + hours * hourRowHeight;
@@ -601,12 +749,12 @@ class _WeekTimeGrid extends StatelessWidget {
                   final List<Widget> positioned = <Widget>[];
 
                   for (int di = 0; di < 7; di++) {
-                    final dayEvents = timedByDay[di];
-                    final lanes = _computeLanes(dayEvents);
+                    final daySegments = timedSegmentsByDay[di];
+                    final lanes = _computeLanes(daySegments);
                     for (final laneItem in lanes) {
                       final e = laneItem.event;
-                      final int s = (_toMinutes(e.startTime!) - startMinutes).clamp(0, totalMinutes);
-                      final int t = (_toMinutes(e.endTime!) - startMinutes).clamp(0, totalMinutes);
+                      final int s = (_toMinutes(laneItem.start) - startMinutes).clamp(0, totalMinutes);
+                      final int t = (_toMinutes(laneItem.end) - startMinutes).clamp(0, totalMinutes);
                       final int dur = math.max(t - s, 1);
                       final double top = allDayRowHeight + (s / 60.0) * hourRowHeight;
                       final double height = math.max((dur / 60.0) * hourRowHeight, eventMinHeight);
@@ -635,69 +783,10 @@ class _WeekTimeGrid extends StatelessWidget {
                     }
                   }
 
-                  // All-day row: holiday events fill the day column as a rectangular block;
-                  // non-holiday all-day events remain as chips below.
+                  // All-day row: entireDay events fill the day column as a rectangular block;
+                  // non-entireDay all-day events remain as chips below.
                   final List<Widget> allDayRow = List.generate(7, (di) {
                     final items = allDayByDay[di];
-                    final List<UserEvent> holidays = items.where((e) => e.isHoliday).toList();
-                    final List<UserEvent> nonHolidayItems = items.where((e) => !e.isHoliday).toList();
-
-                    if (holidays.isNotEmpty) {
-                      final Color bg = holidays.first.userEventColor;
-                      final String holidayText = holidays.map((e) => e.userEventTitle).join(' • ');
-                      return Container(
-                        width: dayColumnWidth,
-                        height: allDayRowHeight,
-                        decoration: BoxDecoration(
-                          color: bg,
-                          border: Border(
-                            bottom: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08)),
-                            right: di < 6 ? BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08)) : BorderSide.none,
-                          ),
-                        ),
-                        padding: EdgeInsets.zero,
-                        child: Stack(
-                          children: [
-                            Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: Text(
-                                  holidayText,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 7,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (nonHolidayItems.isNotEmpty)
-                              Positioned(
-                                top: 2,
-                                right: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '+${convertNumbers(nonHolidayItems.length, mainCalendar)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 7,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    } else {
                       if (items.isEmpty) {
                         return Container(
                           width: dayColumnWidth,
@@ -705,8 +794,10 @@ class _WeekTimeGrid extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: theme.colorScheme.surface.withOpacity(0.06),
                             border: Border(
-                              bottom: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08)),
-                              right: di < 6 ? BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08)) : BorderSide.none,
+                              bottom: BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)),
+                              left: BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)),
+                              top: BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)),
+                              right: di < 6 ? BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)) : BorderSide.none,
                             ),
                           ),
                         );
@@ -719,8 +810,10 @@ class _WeekTimeGrid extends StatelessWidget {
                         height: allDayRowHeight,
                         decoration: BoxDecoration(
                           border: Border(
-                            bottom: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08)),
-                            right: di < 6 ? BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.08)) : BorderSide.none,
+                            bottom: BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)),
+                            left: BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)),
+                            top: BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)),
+                            right: di < 6 ? BorderSide(color: theme.colorScheme.onPrimary.withOpacity(0.08)) : BorderSide.none,
                           ),
                         ),
                         child: Stack(
@@ -749,7 +842,6 @@ class _WeekTimeGrid extends StatelessWidget {
                           ],
                         ),
                       );
-                    }
                   });
 
                   return Stack(
@@ -762,6 +854,7 @@ class _WeekTimeGrid extends StatelessWidget {
                             height: hours * hourRowHeight,
                             width: gridWidth,
                             child: CustomPaint(
+                              ///hours grid
                               painter: _GridPainter(
                                 hours: hours,
                                 dayCount: 7,
@@ -798,15 +891,15 @@ class _WeekTimeGrid extends StatelessWidget {
 
   // Compute lane assignment for overlapping events within a day.
   // Greedy sweep-line: sort by start, keep active intervals, assign smallest free lane.
-  List<_LaneItem> _computeLanes(List<UserEvent> events) {
-    if (events.isEmpty) return const [];
+  List<_LaneItem> _computeLanes(List<_Timed> items) {
+    if (items.isEmpty) return const [];
     final List<_LaneItem> out = [];
     final List<_ActiveItem> active = [];
 
-    final List<_Timed> items = events.map((e) => _Timed(e, e.startTime!, e.endTime!)).toList()
+    final List<_Timed> sorted = List<_Timed>.from(items)
       ..sort((a, b) => _toMinutes(a.start).compareTo(_toMinutes(b.start)));
 
-    for (final item in items) {
+    for (final item in sorted) {
       final int start = _toMinutes(item.start);
       // Remove finished
       active.removeWhere((a) => _toMinutes(a.end) <= start);
@@ -822,7 +915,7 @@ class _WeekTimeGrid extends StatelessWidget {
       // Lanes in current overlapping group is max(active lanes)+1
       final int lanesInGroup = (active.map((a) => a.lane).fold<int>(0, (p, c) => math.max(p, c))) + 1;
 
-      out.add(_LaneItem(event: item.event, lane: lane, lanesInGroup: lanesInGroup));
+      out.add(_LaneItem(event: item.event, start: item.start, end: item.end, lane: lane, lanesInGroup: lanesInGroup));
     }
     return out;
   }
@@ -843,6 +936,7 @@ class _EventCard extends StatelessWidget {
       height: double.infinity, // Fill the Positioned height
       padding: const EdgeInsets.only(top: 4,bottom: 4,left: 1,right: 1),
       decoration: BoxDecoration(
+        border: Border.all(color: e.userEventBorderColor, width: 1.0),
         color: bg,
         boxShadow: [
           BoxShadow(color: bg.withOpacity(0.35), blurRadius: 6, offset: const Offset(0, 2)),
@@ -859,7 +953,7 @@ class _EventCard extends StatelessWidget {
                 title,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 7, fontWeight: FontWeight.w700),
+                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -880,9 +974,12 @@ class _AllDayChip extends StatelessWidget {
     final Color bg = e.userEventColor;
     return SizedBox.expand(
       child: Container(
-        color: bg,
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border.all(color: e.userEventBorderColor, width: 1.0),
+        ),
         child: Text(
           e.userEventTitle,
           maxLines: 2,
@@ -962,8 +1059,10 @@ class _ActiveItem {
 }
 
 class _LaneItem {
-  const _LaneItem({required this.event, required this.lane, required this.lanesInGroup});
+  const _LaneItem({required this.event, required this.start, required this.end, required this.lane, required this.lanesInGroup});
   final UserEvent event;
+  final TimeOfDay start;
+  final TimeOfDay end;
   final int lane;
   final int lanesInGroup;
 }

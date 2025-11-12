@@ -170,3 +170,86 @@ HolyDay(year: Jalai_Year , month: Jalai_Month, day: Jalai_Day)
 | marker          | متد ساخت مارکر های طراحی شده کاربر را برای هر روز را دریافت میکند | (DateTime date, List<dynamic> eventsOfDay)        |
 
 
+
+## Weekly View (JalaliWeekView) with JalaliTableCalendarOption
+
+JalaliWeekView supports the same JalaliTableCalendarOption you use in the monthly view. You can control:
+- showHeader: show/hide the internal header bar
+- showHeaderArrows: show/hide the navigation chevrons
+- headerPadding: padding around the header
+- weekStartDay: starting day of the week (saturday/sunday/monday/…)
+- daysOfWeekTitles: custom titles for weekday header (must be length 7)
+- weekendDays: customize weekend weekdays by ISO number (1=Mon … 7=Sun)
+
+Minimal example:
+```dart
+import 'package:flutter/material.dart';
+import 'package:jalali_table_calendar_plus/jalali_table_calendar_plus.dart';
+
+class WeeklyDemo extends StatelessWidget {
+  const WeeklyDemo({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: JalaliWeekView(
+        mainCalendar: CalendarType.jalali,
+        initialDate: DateTime.now(),
+        // Use JalaliTableCalendarOption to configure header + week start
+        option: JalaliTableCalendarOption(
+          showHeader: true,
+          showHeaderArrows: true,
+          headerPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          // Set week start day (e.g., monday, saturday, etc.)
+          weekStartDay: WeekStartDay.saturday,
+          // Optional: override weekday titles (length must be 7)
+          daysOfWeekTitles: const ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+          // Optional: customize weekend days by ISO weekday (1=Mon..7=Sun).
+          // For Jalali/Hijri typically Friday is weekend => 5
+          weekendDays: const [5],
+        ),
+        // Optional extras:
+        selectedDate: DateTime.now(),
+        onDaySelected: (DateTime d) {
+          debugPrint('Selected day in weekly view: $d');
+        },
+        // Supply your events list if you use the schedule grid
+        calendarEvents: const [],
+      ),
+    );
+  }
+}
+```
+
+Hide the built-in header:
+```dart
+JalaliWeekView(
+  initialDate: DateTime.now(),
+  option: JalaliTableCalendarOption(
+    showHeader: false,         // hides the header bar
+    // showHeaderArrows is ignored when header is hidden
+    weekStartDay: WeekStartDay.monday,
+  ),
+)
+```
+
+Start week on Monday and set custom weekday titles:
+```dart
+JalaliWeekView(
+  initialDate: DateTime.now(),
+  option: JalaliTableCalendarOption(
+    showHeader: true,
+    showHeaderArrows: true,
+    weekStartDay: WeekStartDay.monday,
+    daysOfWeekTitles: const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    // If you use Gregorian and want weekend on Sunday:
+    weekendDays: const [7], // 7 = Sunday
+  ),
+)
+```
+
+Notes:
+- weekStartDay also affects the page navigation math and the 7-day range the view shows.
+- daysOfWeekTitles must be length 7 or an assertion will throw.
+- weekendDays controls only weekend highlighting; actual holiday detection still depends on your events/holiday sources.

@@ -42,6 +42,8 @@ class JalaliWeekView extends StatefulWidget {
     this.onPageRangeChanged,
     // New: header text change listener
     this.onHeaderTextChanged,
+    // New: event tap listener
+    this.onEventTap,
   });
 
   final TextDirection direction;
@@ -80,7 +82,10 @@ class JalaliWeekView extends StatefulWidget {
  
   /// Callback for header text (month title) changes. Provides (title, year, month) in mainCalendar.
   final void Function(String title, int year, int month)? onHeaderTextChanged;
- 
+  
+  /// Callback when an event is tapped. Provides the event ID.
+  final void Function(String eventId)? onEventTap;
+
   @override
   JalaliWeekViewState createState() => JalaliWeekViewState();
 }
@@ -359,6 +364,7 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
                           eventMinHeight: widget.eventMinHeight,
                           direction: widget.direction,
                           allDayLabel: widget.allDayLabel,
+                          onEventTap: widget.onEventTap,
                         ),
                       ),
                     ),
@@ -616,6 +622,7 @@ class _WeekTimeGrid extends StatelessWidget {
     required this.eventMinHeight,
     required this.direction,
     required this.allDayLabel,
+    this.onEventTap,
   });
 
   final ThemeData theme;
@@ -630,6 +637,7 @@ class _WeekTimeGrid extends StatelessWidget {
   final double eventMinHeight;
   final TextDirection direction;
   final String allDayLabel;
+  final void Function(String eventId)? onEventTap;
 
   @override
   Widget build(BuildContext context) {
@@ -778,7 +786,7 @@ class _WeekTimeGrid extends StatelessWidget {
                         top: top,
                         width: width,
                         height: height,
-                        child: _EventCard(e: e),
+                        child: _EventCard(e: e, onEventTap: onEventTap),
                       ));
                     }
                   }
@@ -818,7 +826,7 @@ class _WeekTimeGrid extends StatelessWidget {
                         ),
                         child: Stack(
                           children: [
-                            _AllDayChip(e: primary),
+                            _AllDayChip(e: primary, onEventTap: onEventTap),
                             if (extraCount > 0)
                               Positioned(
                                 top: 2,
@@ -922,9 +930,10 @@ class _WeekTimeGrid extends StatelessWidget {
 }
 
 class _EventCard extends StatelessWidget {
-  const _EventCard({required this.e});
+  const _EventCard({required this.e, this.onEventTap});
 
   final UserEvent e;
+  final void Function(String eventId)? onEventTap;
 
   @override
   Widget build(BuildContext context) {
@@ -932,30 +941,37 @@ class _EventCard extends StatelessWidget {
     final Color fg = Colors.white;
     final String title = e.userEventTitle;
 
-    return Container(
-      height: double.infinity, // Fill the Positioned height
-      padding: const EdgeInsets.only(top: 4,bottom: 4,left: 1,right: 1),
-      decoration: BoxDecoration(
-        border: Border.all(color: e.userEventBorderColor, width: 1.0),
-        color: bg,
-        boxShadow: [
-          BoxShadow(color: bg.withOpacity(0.35), blurRadius: 6, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: SingleChildScrollView(
-        child: DefaultTextStyle(
-          style: TextStyle(color: fg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
-              ),
-            ],
+    return GestureDetector(
+      onTap: () {
+        if (onEventTap != null) {
+          onEventTap!(e.userEventId);
+        }
+      },
+      child: Container(
+        height: double.infinity, // Fill the Positioned height
+        padding: const EdgeInsets.only(top: 4,bottom: 4,left: 1,right: 1),
+        decoration: BoxDecoration(
+          border: Border.all(color: e.userEventBorderColor, width: 1.0),
+          color: bg,
+          boxShadow: [
+            BoxShadow(color: bg.withOpacity(0.35), blurRadius: 6, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: DefaultTextStyle(
+            style: TextStyle(color: fg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -966,29 +982,37 @@ class _EventCard extends StatelessWidget {
 }
 
 class _AllDayChip extends StatelessWidget {
-  const _AllDayChip({required this.e});
+  const _AllDayChip({required this.e, this.onEventTap});
   final UserEvent e;
+  final void Function(String eventId)? onEventTap;
 
   @override
   Widget build(BuildContext context) {
     final Color bg = e.userEventColor;
     return SizedBox.expand(
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: bg,
-          border: Border.all(color: e.userEventBorderColor, width: 1.0),
-        ),
-        child: Text(
-          e.userEventTitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 7,
-            fontWeight: FontWeight.w600,
+      child: GestureDetector(
+        onTap: () {
+          if (onEventTap != null) {
+            onEventTap!(e.userEventId);
+          }
+        },
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: bg,
+            border: Border.all(color: e.userEventBorderColor, width: 1.0),
+          ),
+          child: Text(
+            e.userEventTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 7,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),

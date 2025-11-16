@@ -1323,7 +1323,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                           style: TextStyle(
                             fontSize: 8,
                             color: on,
-                            fontFamily: 'IRANSansXVF',
                             fontWeight: FontWeight.w700,
                             height: 1.5,
                             letterSpacing: -0.0625,
@@ -1354,8 +1353,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                         style: TextStyle(
                           fontSize: 8,
                           color: on,
-                          fontFamily: 'IRANSansXFaNum',
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                           height: 2.0,
                           letterSpacing: 0.0,
                         ),
@@ -1380,7 +1378,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     color: themeData.colorScheme.onPrimary,
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    fontFamily: 'IRANSansXFaNum',
                   ),
                 ),
               ),
@@ -1634,7 +1631,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: Container(
-                      width: 35,
+                      width: 38,
                       height: 35,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
@@ -1672,15 +1669,13 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                           style: widget.option?.daysStyle
                                   ?.copyWith(
                                     color: styleColor,
-                                    fontFamily: 'IRANSansXFaNum',
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22,
                                   ) ??
                               TextStyle(
                                 color: styleColor,
-                                fontFamily: 'IRANSansXFaNum',
-                                fontWeight: FontWeight.w600,
-                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 22,
                               ),
                         ),
                       ),
@@ -1700,7 +1695,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     style: TextStyle(
                       fontSize: 11,
                       color: styleColor,
-                      fontFamily: 'IRANSansXFaNum',
                       fontWeight: FontWeight.w500,
                       height: 1.45,
                     ),
@@ -1718,8 +1712,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     style: TextStyle(
                       fontSize: 11,
                       color: styleColor,
-                      fontFamily: 'IRANSansXFaNum',
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w700,
                       height: 1.45,
                     ),
                   ),
@@ -1745,16 +1738,13 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   style: widget.option?.daysStyle
                           ?.copyWith(
                             color: styleColor,
-                            fontFamily: 'IRANSansXFaNum',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
                           ) ??
                       TextStyle(
                         color: styleColor,
-                        fontFamily: 'IRANSansXFaNum',
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18,
-                        height: 1.27,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 22,
                       ),
                 ),
               ),
@@ -1768,8 +1758,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   child: Text(
                     leftCalendarText!,
                     style: TextStyle(
-                      fontSize: 11,
                       color: styleColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      height: 1.45,
                     ),
                   ),
                 ),
@@ -1783,8 +1775,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   child: Text(
                     rightCalendarText!,
                     style: TextStyle(
-                      fontSize: 11,
                       color: styleColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      height: 1.45,
                     ),
                   ),
                 ),

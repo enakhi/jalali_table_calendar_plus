@@ -1722,6 +1722,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         ),
       );
     } else {
+      // Check if this is today's date
+      bool isToday = _isToday(date);
+      
       return Container(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
@@ -1729,23 +1732,39 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         child: Stack(
           children: [
             Positioned(
-              top: 10,
+              top: 4,
               left: 0,
               right: 0,
               child: Center(
-                child: Text(
-                  convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
-                  style: widget.option?.daysStyle
-                          ?.copyWith(
-                            color: styleColor,
+                child: Container(
+                  width: 38,
+                  height: 36,
+                  decoration: isToday && widget.option?.todayBackgroundColor != null
+                      ? BoxDecoration(
+                          color: widget.option!.todayBackgroundColor,
+                          shape: BoxShape.circle,
+                        )
+                      : null,
+                  child: Center(
+                    child: Text(
+                      convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
+                      style: widget.option?.daysStyle
+                              ?.copyWith(
+                                color: isToday && widget.option?.todayOnColor != null
+                                    ? widget.option!.todayOnColor
+                                    : styleColor,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 22,
+                              ) ??
+                          TextStyle(
+                            color: isToday && widget.option?.todayOnColor != null
+                                ? widget.option!.todayOnColor
+                                : styleColor,
                             fontWeight: FontWeight.w900,
                             fontSize: 22,
-                          ) ??
-                      TextStyle(
-                        color: styleColor,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 22,
-                      ),
+                          ),
+                    ),
+                  ),
                 ),
               ),
             ),

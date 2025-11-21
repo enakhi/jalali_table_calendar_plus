@@ -346,6 +346,7 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
                       selectedDate: widget.selectedDate,
                       onDaySelected: widget.onDaySelected,
                       isHolidayFn: _isHolidayFromRepoOrFallback,
+                      option: widget.option,
                     ),
                     const SizedBox(height: 8),
                     Flexible(
@@ -442,6 +443,7 @@ class _WeekDaysHeader extends StatelessWidget {
     this.selectedDate,
     this.onDaySelected,
     required this.isHolidayFn,
+    this.option,
   });
 
   final CalendarType mainCalendar;
@@ -457,6 +459,7 @@ class _WeekDaysHeader extends StatelessWidget {
   final DateTime? selectedDate;
   final void Function(DateTime)? onDaySelected;
   final bool Function(DateTime) isHolidayFn;
+  final JalaliTableCalendarOption? option;
 
   @override
   Widget build(BuildContext context) {
@@ -478,6 +481,7 @@ class _WeekDaysHeader extends StatelessWidget {
                   d.day == selectedDate!.day;
               final isWeekend = _isWeekend(d);
               final isHoliday = isHolidayFn(d);
+              final isToday = _isToday(d);
               final dayNum = switch (mainCalendar) {
                 CalendarType.jalali => convertNumbers(Jalali.fromDateTime(d).day, mainCalendar),
                 CalendarType.hijri => convertNumbers(HijriCalendar.fromDate(d).hDay, mainCalendar),
@@ -526,13 +530,19 @@ class _WeekDaysHeader extends StatelessWidget {
                                 blurRadius: 12,
                               ),
                             ],
+                          ) : (isToday && option?.todayBackgroundColor != null) ? BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: option!.todayBackgroundColor,
                           ) : null,
                           child: Center(
                             child: Text(
                               dayNum,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: styleColor,
+                                fontWeight: FontWeight.w600,
+                                color: isToday && option?.todayOnColor != null && !isSelected
+                                    ? option!.todayOnColor
+                                    : styleColor,
                               ),
                             ),
                           ),
@@ -542,10 +552,10 @@ class _WeekDaysHeader extends StatelessWidget {
                         Row(
                           children: [
                             if (leftText != null)
-                              Text(leftText, style: TextStyle(fontSize: 11, color: styleColor)),
+                              Text(leftText, style: TextStyle(fontSize: 11,fontWeight: FontWeight.w600, color: styleColor)),
                             const Spacer(),
                             if (rightText != null)
-                              Text(rightText, style: TextStyle(fontSize: 11, color: styleColor)),
+                              Text(rightText, style: TextStyle(fontSize: 11,fontWeight: FontWeight.w600, color: styleColor)),
                           ],
                         )),
                       ],
@@ -604,6 +614,12 @@ class _WeekDaysHeader extends StatelessWidget {
     List<int> weekendDays = customWeekendDays ??
         (mainCalendar == CalendarType.gregorian ? [7] : [5]); // Jalali/Hijri: Friday (5), Gregorian: Sunday (7)
     return weekendDays.contains(date.weekday);
+  }
+
+  // Check if a date is today
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
 }

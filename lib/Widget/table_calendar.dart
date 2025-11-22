@@ -77,7 +77,16 @@ String _convertToArabicNumbers(int number) {
     englishToArabic[digit] ?? digit
   ).join('');
 }
-
+String convertNumbersBaseOfLanguge(int number, String lang) {
+  switch (lang) {
+    case "fa":
+      return _convertToPersianNumbers(number);
+    case "ar":
+      return _convertToArabicNumbers(number);
+    default:
+      return number.toString();
+  }
+}
 String convertNumbers(int number, CalendarType calendarType) {
   switch (calendarType) {
     case CalendarType.jalali:
@@ -181,17 +190,17 @@ DateTime convertDate(DateTime date, CalendarType fromType, CalendarType toType) 
   }
 }
 
-String getDateString(DateTime date, CalendarType calendarType) {
+String getDateString(DateTime date, CalendarType calendarType,String lang) {
   switch (calendarType) {
     case CalendarType.jalali:
       Jalali jalali = Jalali.fromDateTime(date);
-      return '${convertNumbers(jalali.year, calendarType)}/${convertNumbers(jalali.month, calendarType)}/${convertNumbers(jalali.day, calendarType)}';
+      return '${convertNumbersBaseOfLanguge(jalali.year,lang)}/${convertNumbersBaseOfLanguge(jalali.month,lang)}/${convertNumbersBaseOfLanguge(jalali.day,lang)}';
     case CalendarType.hijri:
       HijriCalendar hijri = HijriCalendar.fromDate(date);
       hijri.hYear -= 53; // Adjust for hijri package bug
-      return '${convertNumbers(hijri.hYear, calendarType)}/${convertNumbers(hijri.hMonth, calendarType)}/${convertNumbers(hijri.hDay, calendarType)}';
+      return '${convertNumbersBaseOfLanguge(hijri.hYear,lang)}/${convertNumbersBaseOfLanguge(hijri.hMonth,lang)}/${convertNumbersBaseOfLanguge(hijri.hDay,lang)}';
     case CalendarType.gregorian:
-      return '${date.year}/${date.month}/${date.day}';
+      return '${convertNumbersBaseOfLanguge(date.year,lang)}/${convertNumbersBaseOfLanguge(date.month,lang)}/${convertNumbersBaseOfLanguge(date.day,lang)}';
   }
 }
 

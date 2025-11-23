@@ -201,8 +201,8 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
     DateTime clampedStart = _clampTimeToDayBounds(start);
     DateTime clampedEnd = _clampTimeToDayBounds(end);
     
-    // Ensure minimum duration of 15 minutes
-    if (clampedEnd.difference(clampedStart).inMinutes < 15) {
+    // Ensure minimum duration of 30 minutes
+    if (clampedEnd.difference(clampedStart).inMinutes < 30) {
       if (start.isAfter(end)) {
         // If start was after end (can happen with top resize), swap them
         final temp = clampedStart;
@@ -211,13 +211,13 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
       }
       
       // Adjust end to ensure minimum duration
-      if (clampedEnd.difference(clampedStart).inMinutes < 15) {
-        clampedEnd = clampedStart.add(const Duration(minutes: 15));
+      if (clampedEnd.difference(clampedStart).inMinutes < 30) {
+        clampedEnd = clampedStart.add(const Duration(minutes: 30));
         // If this goes beyond bounds, adjust start instead
         if (_clampTimeToDayBounds(clampedEnd).hour != clampedEnd.hour ||
             _clampTimeToDayBounds(clampedEnd).minute != clampedEnd.minute) {
           clampedEnd = _clampTimeToDayBounds(clampedEnd);
-          clampedStart = clampedEnd.subtract(const Duration(minutes: 15));
+          clampedStart = clampedEnd.subtract(const Duration(minutes: 30));
         }
       }
     }
@@ -1784,8 +1784,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
       _dragStart = _dragStart.add(duration);
       _dragEnd = _dragEnd.add(duration);
       
-      if (_dragEnd.difference(_dragStart).inMinutes < 15) {
-        _dragEnd = _dragStart.add(const Duration(minutes: 15));
+      if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+        _dragEnd = _dragStart.add(const Duration(minutes: 30));
       }
     });
     
@@ -1820,8 +1820,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
         );
         
         // Ensure minimum duration
-        if (_dragEnd.difference(_dragStart).inMinutes < 15) {
-          _dragEnd = _dragStart.add(const Duration(minutes: 15));
+        if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+          _dragEnd = _dragStart.add(const Duration(minutes: 30));
           // If this goes beyond bounds, adjust start instead
           final int endMinutesAfter = _dragEnd.hour * 60 + _dragEnd.minute;
           if (endMinutesAfter > dayEndMinutes) {
@@ -1832,7 +1832,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
               dayEndMinutes ~/ 60,
               dayEndMinutes % 60,
             );
-            _dragStart = _dragEnd.subtract(const Duration(minutes: 15));
+            _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
           }
         }
       });
@@ -1871,11 +1871,11 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
         _dragEnd = temp;
       }
       
-      if (_dragEnd.difference(_dragStart).inMinutes < 15) {
+      if (_dragEnd.difference(_dragStart).inMinutes < 30) {
         if (isTop) {
-          _dragStart = _dragEnd.subtract(const Duration(minutes: 15));
+          _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
         } else {
-          _dragEnd = _dragStart.add(const Duration(minutes: 15));
+          _dragEnd = _dragStart.add(const Duration(minutes: 30));
         }
       }
     });
@@ -1911,11 +1911,11 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
         );
         
         // Ensure minimum duration
-        if (_dragEnd.difference(_dragStart).inMinutes < 15) {
+        if (_dragEnd.difference(_dragStart).inMinutes < 30) {
           if (isTop) {
-            _dragStart = _dragEnd.subtract(const Duration(minutes: 15));
+            _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
           } else {
-            _dragEnd = _dragStart.add(const Duration(minutes: 15));
+            _dragEnd = _dragStart.add(const Duration(minutes: 30));
           }
           
           // If this goes beyond bounds, adjust the other side instead
@@ -1930,7 +1930,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
               dayStartMinutes ~/ 60,
               dayStartMinutes % 60,
             );
-            _dragEnd = _dragStart.add(const Duration(minutes: 15));
+            _dragEnd = _dragStart.add(const Duration(minutes: 30));
           } else if (finalEndMinutes > dayEndMinutes) {
             _dragEnd = DateTime(
               _dragEnd.year,
@@ -1939,7 +1939,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
               dayEndMinutes ~/ 60,
               dayEndMinutes % 60,
             );
-            _dragStart = _dragEnd.subtract(const Duration(minutes: 15));
+            _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
           }
         }
       });

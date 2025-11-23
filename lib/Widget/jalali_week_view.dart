@@ -548,7 +548,7 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
             child: PageView.builder(
               controller: _pageController,
               // Disable page changes only when dragging placeholder
-              physics: _isDraggingPlaceholder && _placeholderDayIndex != null ? const NeverScrollableScrollPhysics() : null,
+              physics: _isDraggingPlaceholder ? const NeverScrollableScrollPhysics() : null,
               onPageChanged: (page) {
                 // Calculate new week start based on page offset
                 final int weekOffset = page - 1000;
@@ -1233,12 +1233,12 @@ class _WeekTimeGridState extends State<_WeekTimeGrid> {
                       // Timed events
                       ...positioned,
                       // Event placeholder
-                      if (widget.placeholderStart != null && widget.placeholderEnd != null && widget.placeholderDayIndex != null)
+                      if (widget.placeholderStart != null && widget.placeholderEnd != null)
                         _buildPlaceholder(
                           widget.placeholderStart!,
                           widget.placeholderEnd!,
-                          widget.placeholderDayIndex!,
                           dayColumnWidth,
+                          widget.days,
                           widget.allDayRowHeight,
                           startMinutes,
                           widget.hourRowHeight,
@@ -1299,32 +1299,45 @@ class _WeekTimeGridState extends State<_WeekTimeGrid> {
   Widget _buildPlaceholder(
     DateTime start,
     DateTime end,
-    int dayIndex,
     double dayColumnWidth,
+    List<DateTime> weekDays,
     double allDayRowHeight,
     int startMinutes,
     double hourRowHeight,
     TextDirection direction,
   ) {
+    // Find day indices for start and end
+    int startDayIndex = weekDays.indexWhere((d) => d.year == start.year && d.month == start.month && d.day == start.day);
+    int endDayIndex = weekDays.indexWhere((d) => d.year == end.year && d.month == end.month && d.day == end.day);
+
+    // If not found in current week or invalid span, don't show
+    if (startDayIndex == -1 || endDayIndex == -1 || startDayIndex > endDayIndex) {
+      return Container();
+    }
+
+    int span = endDayIndex - startDayIndex + 1;
+
     // Calculate position and size
     final int startMinutesFromMidnight = start.hour * 60 + start.minute;
     final int endMinutesFromMidnight = end.hour * 60 + end.minute;
-    
+
     final double top = allDayRowHeight + ((startMinutesFromMidnight - startMinutes) / 60.0) * hourRowHeight;
     final double height = ((endMinutesFromMidnight - startMinutesFromMidnight) / 60.0) * hourRowHeight;
-    
+
     final double dayOffset = direction == TextDirection.rtl ?
-        (6 - dayIndex) * dayColumnWidth : dayIndex * dayColumnWidth;
-    
+        (6 - startDayIndex) * dayColumnWidth : startDayIndex * dayColumnWidth;
+    final double width = span * dayColumnWidth - 4;
+
     return Positioned(
       left: dayOffset + 2,
       top: top,
-      width: dayColumnWidth - 4,
+      width: width,
       height: height,
       child: _EventPlaceholder(
         startDate: start,
         endDate: end,
-        dayColumnWidth: dayColumnWidth - 4,
+        dayColumnWidth: dayColumnWidth,
+        weekDays: weekDays,
         hourRowHeight: hourRowHeight,
         onTap: widget.onPlaceholderTap ?? () {},
         onResize: (newStart, newEnd) => widget.onPlaceholderUpdate?.call(newStart, newEnd),
@@ -1506,6 +1519,7 @@ class _EventPlaceholder extends StatefulWidget {
     required this.startDate,
     required this.endDate,
     required this.dayColumnWidth,
+    required this.weekDays,
     required this.hourRowHeight,
     required this.onTap,
     required this.onResize,
@@ -1520,6 +1534,7 @@ class _EventPlaceholder extends StatefulWidget {
   final DateTime startDate;
   final DateTime endDate;
   final double dayColumnWidth;
+  final List<DateTime> weekDays;
   final double hourRowHeight;
   final VoidCallback onTap;
   final Function(DateTime newStart, DateTime newEnd) onResize;
@@ -1537,16 +1552,24 @@ class _EventPlaceholder extends StatefulWidget {
 class _EventPlaceholderState extends State<_EventPlaceholder> {
   bool _isDraggingTop = false;
   bool _isDraggingBottom = false;
+  bool _isDraggingLeft = false;
+  bool _isDraggingRight = false;
   bool _isDraggingMove = false;
   late DateTime _dragStart;
   late DateTime _dragEnd;
   final GlobalKey _placeholderKey = GlobalKey();
-  
+
   Offset? _lastPointerPosition;
   bool _isDraggingWithPointer = false;
+
+  // Accumulate drag deltas for more responsive movement
+  double _accumulatedDeltaX = 0.0;
+  double _accumulatedDeltaY = 0.0;
   
   void _resetPointerPositions() {
     _lastPointerPosition = null;
+    _accumulatedDeltaX = 0.0;
+    _accumulatedDeltaY = 0.0;
   }
   
   @override
@@ -1622,7 +1645,9 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                   color: _isDraggingMove ? colorScheme.primary.withOpacity(0.3) : Colors.transparent,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Center(
+                child: Padding(padding: EdgeInsetsGeometry.all(5),child:  Center(
+                  child: FittedBox(
+                  fit: BoxFit.scaleDown,
                   child: Text(
                     '+ New Event',
                     style: TextStyle(
@@ -1631,6 +1656,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                       fontSize: 12,
                     ),
                   ),
+                  ),
+                ),
                 ),
               ),
               // Top resize handle
@@ -1647,7 +1674,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                       topRight: Radius.circular(4),
                     ),
                   ),
-                  child: Center(
+                  child: Align(
+                    alignment: Alignment.topCenter,
                     child: Container(
                       width: 30,
                       height: 3,
@@ -1673,10 +1701,65 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                       bottomRight: Radius.circular(4),
                     ),
                   ),
-                  child: Center(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
                     child: Container(
                       width: 30,
                       height: 3,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Left resize handle for start day
+              Positioned(
+                left: 0,
+                top: 12,
+                bottom: 12,
+                width: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _isDraggingLeft ? colorScheme.primary.withOpacity(0.4) : Colors.transparent,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      bottomLeft: Radius.circular(4),
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: 3,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Right resize handle for end day
+              Positioned(
+                right: 0,
+                top: 12,
+                bottom: 12,
+                width: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _isDraggingRight ? colorScheme.primary.withOpacity(0.4) : Colors.transparent,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(4),
+                      bottomRight: Radius.circular(4),
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      width: 3,
+                      height: 30,
                       decoration: BoxDecoration(
                         color: colorScheme.primary,
                         borderRadius: BorderRadius.circular(2),
@@ -1694,13 +1777,14 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
 
   void _handlePointerDown(PointerDownEvent event) {
     _lastPointerPosition = event.localPosition;
-    
+
     final RenderBox? renderBox = _placeholderKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    
+
     final size = renderBox.size;
     final localY = event.localPosition.dy;
-    
+    final localX = event.localPosition.dx;
+
     if (localY < 12) {
       setState(() {
         _isDraggingTop = true;
@@ -1710,6 +1794,18 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     } else if (localY > size.height - 12) {
       setState(() {
         _isDraggingBottom = true;
+        _isDraggingWithPointer = true;
+      });
+      widget.onDragStart?.call();
+    } else if (localX < 12) {
+      setState(() {
+        _isDraggingLeft = true;
+        _isDraggingWithPointer = true;
+      });
+      widget.onDragStart?.call();
+    } else if (localX > size.width - 12) {
+      setState(() {
+        _isDraggingRight = true;
         _isDraggingWithPointer = true;
       });
       widget.onDragStart?.call();
@@ -1729,30 +1825,74 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     }
     final delta = event.localPosition - _lastPointerPosition!;
     _lastPointerPosition = event.localPosition;
-    
+
+    // Accumulate deltas for more responsive movement
+    _accumulatedDeltaX += delta.dx;
+    _accumulatedDeltaY += delta.dy;
+
     final isInside = _isInsidePlaceholder(event.position);
     widget.onDragInsideChange?.call(isInside);
     widget.onDragUpdate?.call(event.position);
-    
-    if (_isDraggingMove) {
-      _handleMoveByDelta(delta.dy);
-    } else if (_isDraggingTop) {
-      _handleResizeByDelta(delta.dy, true);
-    } else if (_isDraggingBottom) {
-      _handleResizeByDelta(delta.dy, false);
+
+    if (_isDraggingLeft || _isDraggingRight) {
+      // Process accumulated horizontal deltas for day changes
+      const double threshold = 20.0; // Minimum accumulated pixels before processing
+      if (_accumulatedDeltaX.abs() >= threshold) {
+        final deltaToProcess = _accumulatedDeltaX;
+        _accumulatedDeltaX = 0.0; // Reset accumulator
+
+        if (_isDraggingLeft) {
+          _handleDayResizeByDelta(deltaToProcess, true);
+        } else if (_isDraggingRight) {
+          _handleDayResizeByDelta(deltaToProcess, false);
+        }
+      }
+    } else if (_isDraggingMove) {
+      if (_accumulatedDeltaX.abs() > _accumulatedDeltaY.abs()) {
+        // Horizontal movement - handle day changes
+        const double threshold = 25.0;
+        if (_accumulatedDeltaX.abs() >= threshold) {
+          final deltaToProcess = _accumulatedDeltaX;
+          _accumulatedDeltaX = 0.0;
+          _handleMoveDaysByDelta(deltaToProcess);
+        }
+      } else {
+        // Vertical movement - handle time changes
+        const double threshold = 10.0;
+        if (_accumulatedDeltaY.abs() >= threshold) {
+          final deltaToProcess = _accumulatedDeltaY;
+          _accumulatedDeltaY = 0.0;
+          _handleMoveByDelta(deltaToProcess);
+        }
+      }
+    } else if (_isDraggingTop || _isDraggingBottom) {
+      // Process accumulated vertical deltas for time resizing
+      const double threshold = 15.0;
+      if (_accumulatedDeltaY.abs() >= threshold) {
+        final deltaToProcess = _accumulatedDeltaY;
+        _accumulatedDeltaY = 0.0;
+
+        if (_isDraggingTop) {
+          _handleResizeByDelta(deltaToProcess, true);
+        } else if (_isDraggingBottom) {
+          _handleResizeByDelta(deltaToProcess, false);
+        }
+      }
     }
   }
   
   void _handlePointerUp(PointerUpEvent event) {
     if (!_isDraggingWithPointer) return;
-    
+
     setState(() {
       _isDraggingMove = false;
       _isDraggingTop = false;
       _isDraggingBottom = false;
+      _isDraggingLeft = false;
+      _isDraggingRight = false;
       _isDraggingWithPointer = false;
     });
-    
+
     widget.onDragEnd?.call();
     widget.onDragInsideChange?.call(false);
     _lastPointerPosition = null;
@@ -1767,75 +1907,91 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
   }
   
   void _handleMoveByDelta(double deltaY) {
+    // Get the parent widget to access dayStartTime/dayEndTime
+    final parentWidget = context.findAncestorWidgetOfExactType<_WeekTimeGrid>();
+    if (parentWidget != null) {
     const double hourRowHeight = 35.0;
     final double minutesChange = (deltaY / hourRowHeight) * 60.0;
     final int roundedMinutesChange = (minutesChange / 15).round() * 15;
     
+    final int oldStartMinutes = _dragStart.hour * 60 + _dragStart.minute;
+    final int oldEndMinutes = _dragEnd.hour * 60 + _dragEnd.minute;
+    final dif=oldEndMinutes-oldStartMinutes;
+
     if (roundedMinutesChange == 0) return;
     
     final duration = Duration(minutes: roundedMinutesChange);
     
+
     // Log before move
     print('DEBUG: _handleMoveByDelta called');
     print('  Before move - Start: ${_dragStart.hour}:${_dragStart.minute.toString().padLeft(2, '0')}, End: ${_dragEnd.hour}:${_dragEnd.minute.toString().padLeft(2, '0')}');
     print('  Minutes change: $roundedMinutesChange');
     
-    setState(() {
-      _dragStart = _dragStart.add(duration);
-      _dragEnd = _dragEnd.add(duration);
-      
-      if (_dragEnd.difference(_dragStart).inMinutes < 30) {
-        _dragEnd = _dragStart.add(const Duration(minutes: 30));
-      }
-    });
+    if (mounted) {
+      setState(() {
+        _dragStart = _dragStart.add(duration);
+        _dragEnd = _dragEnd.add(duration);
+
+        if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+          _dragEnd = _dragStart.add(const Duration(minutes: 30));
+        }
+      });
+    }
+
     
-    // Get the parent widget to access dayStartTime/dayEndTime
-    final parentWidget = context.findAncestorWidgetOfExactType<_WeekTimeGrid>();
-    if (parentWidget != null) {
+    
       // Clamp times to day bounds using the parent's bounds
       final dayStartMinutes = (parentWidget.dayStartTime.hour) * 60 + (parentWidget.dayStartTime.minute);
       final dayEndMinutes = (parentWidget.dayEndTime.hour) * 60 + (parentWidget.dayEndTime.minute);
-      
+
       final int startMinutes = _dragStart.hour * 60 + _dragStart.minute;
       final int endMinutes = _dragEnd.hour * 60 + _dragEnd.minute;
-      
+
       // Apply bounds
-      final int clampedStartMinutes = startMinutes.clamp(dayStartMinutes, dayEndMinutes);
-      final int clampedEndMinutes = endMinutes.clamp(dayStartMinutes, dayEndMinutes);
-      
-      setState(() {
-        _dragStart = DateTime(
-          _dragStart.year,
-          _dragStart.month,
-          _dragStart.day,
-          clampedStartMinutes ~/ 60,
-          clampedStartMinutes % 60,
-        );
-        _dragEnd = DateTime(
-          _dragEnd.year,
-          _dragEnd.month,
-          _dragEnd.day,
-          clampedEndMinutes ~/ 60,
-          clampedEndMinutes % 60,
-        );
-        
-        // Ensure minimum duration
-        if (_dragEnd.difference(_dragStart).inMinutes < 30) {
-          _dragEnd = _dragStart.add(const Duration(minutes: 30));
-          // If this goes beyond bounds, adjust start instead
-          final int endMinutesAfter = _dragEnd.hour * 60 + _dragEnd.minute;
-          if (endMinutesAfter > dayEndMinutes) {
-            _dragEnd = DateTime(
-              _dragEnd.year,
-              _dragEnd.month,
-              _dragEnd.day,
-              dayEndMinutes ~/ 60,
-              dayEndMinutes % 60,
-            );
-            _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
+      int clampedStartMinutes = startMinutes.clamp(dayStartMinutes, dayEndMinutes);
+      int clampedEndMinutes = endMinutes.clamp(dayStartMinutes, dayEndMinutes);
+      if(duration.inMinutes > 0 && clampedEndMinutes - clampedStartMinutes < dif) {
+        clampedStartMinutes = clampedEndMinutes - dif;
+      }else
+      if(duration.inMinutes < 0 && clampedEndMinutes - clampedStartMinutes < dif) {
+        clampedEndMinutes = clampedStartMinutes + dif;
+      }
+      if (mounted) {
+        setState(() {
+          _dragStart = DateTime(
+            _dragStart.year,
+            _dragStart.month,
+            _dragStart.day,
+            clampedStartMinutes ~/ 60,
+            clampedStartMinutes % 60,
+          );
+          _dragEnd = DateTime(
+            _dragEnd.year,
+            _dragEnd.month,
+            _dragEnd.day,
+            clampedEndMinutes ~/ 60,
+            clampedEndMinutes % 60,
+          );
+
+          // Ensure minimum duration
+          if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+            _dragEnd = _dragStart.add(const Duration(minutes: 30));
+            // If this goes beyond bounds, adjust start instead
+            final int endMinutesAfter = _dragEnd.hour * 60 + _dragEnd.minute;
+            if (endMinutesAfter > dayEndMinutes) {
+              _dragEnd = DateTime(
+                _dragEnd.year,
+                _dragEnd.month,
+                _dragEnd.day,
+                dayEndMinutes ~/ 60,
+                dayEndMinutes % 60,
+              );
+              _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
+            }
           }
-        }
-      });
+        });
+      }
     }
     
     // Log after move
@@ -1858,27 +2014,29 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     print('  Before resize - Start: ${_dragStart.hour}:${_dragStart.minute.toString().padLeft(2, '0')}, End: ${_dragEnd.hour}:${_dragEnd.minute.toString().padLeft(2, '0')}');
     print('  Resizing: ${isTop ? "TOP" : "BOTTOM"}, Minutes change: $roundedMinutesChange');
     
-    setState(() {
-      if (isTop) {
-        _dragStart = _dragStart.add(duration);
-      } else {
-        _dragEnd = _dragEnd.add(duration);
-      }
-      
-      if (_dragStart.isAfter(_dragEnd)) {
-        final temp = _dragStart;
-        _dragStart = _dragEnd;
-        _dragEnd = temp;
-      }
-      
-      if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+    if (mounted) {
+      setState(() {
         if (isTop) {
-          _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
+          _dragStart = _dragStart.add(duration);
         } else {
-          _dragEnd = _dragStart.add(const Duration(minutes: 30));
+          _dragEnd = _dragEnd.add(duration);
         }
-      }
-    });
+
+        if (_dragStart.isAfter(_dragEnd)) {
+          final temp = _dragStart;
+          _dragStart = _dragEnd;
+          _dragEnd = temp;
+        }
+
+        if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+          if (isTop) {
+            _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
+          } else {
+            _dragEnd = _dragStart.add(const Duration(minutes: 30));
+          }
+        }
+      });
+    }
     
     // Get the parent widget to access dayStartTime/dayEndTime
     final parentWidget = context.findAncestorWidgetOfExactType<_WeekTimeGrid>();
@@ -1947,8 +2105,90 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     
     // Log after resize
     print('  After resize - Start: ${_dragStart.hour}:${_dragStart.minute.toString().padLeft(2, '0')}, End: ${_dragEnd.hour}:${_dragEnd.minute.toString().padLeft(2, '0')}');
-    
+
     widget.onResize(_dragStart, _dragEnd);
   }
-  
+
+  void _handleDayResizeByDelta(double deltaX, bool isStart) {
+    // More responsive day changes - accumulate smaller deltas but require clear intent
+    if (deltaX.abs() < 15.0) return; // Minimum drag threshold
+
+    final dayPixels = widget.dayColumnWidth*2;
+    // Use a smaller divisor for more responsive movement
+    final daysChange = (deltaX / (dayPixels / 4)).round(); // More sensitive scaling
+    final clampedDaysChange = daysChange.clamp(-1, 1); // Limit to single day moves
+
+    if (clampedDaysChange == 0) return;
+
+    // Get week boundaries
+    final DateTime weekStart = widget.weekDays.first;
+    final DateTime weekEnd = widget.weekDays.last;
+
+    DateTime newDate;
+
+    if (isStart) {
+      newDate = widget.startDate.add(Duration(days: daysChange));
+      // Clamp to ensure minimum 1 day duration and within week bounds
+      if (newDate.isAfter(widget.endDate.subtract(Duration(days: 1)))) {
+        newDate = widget.endDate;
+      }
+      if (newDate.isBefore(weekStart)) {
+        newDate = weekStart;
+      }
+      if (mounted) {
+        setState(() {
+          _dragStart = DateTime(newDate.year, newDate.month, newDate.day, widget.startDate.hour, widget.startDate.minute);
+        });
+      }
+    } else {
+      newDate = widget.endDate.add(Duration(days: daysChange));
+      // Clamp to ensure minimum 1 day duration and within week bounds
+      if (newDate.isBefore(widget.startDate.add(Duration(days: 1)))) {
+        newDate = widget.startDate;
+      }
+      if (newDate.isAfter(weekEnd)) {
+        newDate = weekEnd;
+      }
+      if (mounted) {
+        setState(() {
+          _dragEnd = DateTime(newDate.year, newDate.month, newDate.day, widget.endDate.hour, widget.endDate.minute);
+        });
+      }
+    }
+
+    widget.onResize(_dragStart, _dragEnd);
+  }
+
+  void _handleMoveDaysByDelta(double deltaX) {
+    final dayPixels = widget.dayColumnWidth;
+    final daysChange = (deltaX / dayPixels).round();
+
+    if (daysChange == 0) return;
+
+    // Get week boundaries
+    final DateTime weekStart = widget.weekDays.first;
+    final DateTime weekEnd = widget.weekDays.last;
+
+    final duration = Duration(days: daysChange);
+    final dif=(widget.endDate.millisecondsSinceEpoch/ (1000 * 60 * 60 * 24)).toInt()-(widget.startDate.millisecondsSinceEpoch/ (1000 * 60 * 60 * 24)).toInt(); // Force read to avoid lint
+    DateTime newStart = widget.startDate.add(duration);
+    DateTime newEnd = widget.endDate.add(duration);
+
+    // Clamp start date to week bounds
+    if (newStart.isBefore(weekStart)) {
+      newStart = weekStart; 
+      newEnd = newStart.add(Duration(days: dif));
+    } else if (newEnd.isAfter(weekEnd)) {
+      newEnd = weekEnd;
+      newStart = newEnd.subtract(Duration(days: dif));
+    }
+
+    setState(() {
+      _dragStart = DateTime(newStart.year, newStart.month, newStart.day, widget.startDate.hour, widget.startDate.minute);
+      _dragEnd = DateTime(newEnd.year, newEnd.month, newEnd.day, widget.endDate.hour, widget.endDate.minute);
+    });
+
+    widget.onResize(_dragStart, _dragEnd);
+  }
+
 }

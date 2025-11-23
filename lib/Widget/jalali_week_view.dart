@@ -50,6 +50,8 @@ class JalaliWeekView extends StatefulWidget {
     this.onEmptySlotTap,
     // New: callback to open event creation screen
     this.onCreateEvent,
+    // New: text for new event placeholder
+    this.newEventText = '+ New Event',
   });
 
   final TextDirection direction;
@@ -97,6 +99,9 @@ class JalaliWeekView extends StatefulWidget {
   
   /// Callback to open event creation screen with pre-filled date/time.
   final void Function(DateTime start, DateTime end)? onCreateEvent;
+
+  /// Text to display in the new event placeholder
+  final String newEventText;
 
   @override
   JalaliWeekViewState createState() => JalaliWeekViewState();
@@ -623,6 +628,7 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
                            onPlaceholderDragEnd: () => _setPlaceholderDragging(false),
                            onPlaceholderDragUpdate: _handleDragUpdate,
                            onPlaceholderDragInsideChange: _setDraggingInsidePlaceholder,
+                           newEventText: widget.newEventText,
                          ),
                       ),
                     ),
@@ -907,6 +913,7 @@ class _WeekTimeGrid extends StatefulWidget {
     this.onPlaceholderDragEnd,
     this.onPlaceholderDragUpdate,
     this.onPlaceholderDragInsideChange,
+    this.newEventText = '+ New Event',
   });
 
   final ThemeData theme;
@@ -933,6 +940,7 @@ class _WeekTimeGrid extends StatefulWidget {
   final VoidCallback? onPlaceholderDragEnd;
   final Function(Offset globalPosition)? onPlaceholderDragUpdate;
   final Function(bool isInside)? onPlaceholderDragInsideChange;
+  final String newEventText;
 
   @override
   State<_WeekTimeGrid> createState() => _WeekTimeGridState();
@@ -1339,6 +1347,7 @@ class _WeekTimeGridState extends State<_WeekTimeGrid> {
         dayColumnWidth: dayColumnWidth,
         weekDays: weekDays,
         hourRowHeight: hourRowHeight,
+        newEventText: widget.newEventText,
         onTap: widget.onPlaceholderTap ?? () {},
         onResize: (newStart, newEnd) => widget.onPlaceholderUpdate?.call(newStart, newEnd),
         onDragStart: widget.onPlaceholderDragStart ?? () {},
@@ -1521,6 +1530,7 @@ class _EventPlaceholder extends StatefulWidget {
     required this.dayColumnWidth,
     required this.weekDays,
     required this.hourRowHeight,
+    required this.newEventText,
     required this.onTap,
     required this.onResize,
     required this.direction,
@@ -1536,6 +1546,7 @@ class _EventPlaceholder extends StatefulWidget {
   final double dayColumnWidth;
   final List<DateTime> weekDays;
   final double hourRowHeight;
+  final String newEventText;
   final VoidCallback onTap;
   final Function(DateTime newStart, DateTime newEnd) onResize;
   final TextDirection direction;
@@ -1649,7 +1660,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                   child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    '+ New Event',
+                    widget.newEventText,
                     style: TextStyle(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w600,

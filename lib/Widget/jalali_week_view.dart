@@ -753,13 +753,14 @@ class _WeekDaysHeader extends StatelessWidget {
               final String? leftText = subCalendarLeft == null ? null : _secondaryDay(d, subCalendarLeft!);
               final String? rightText = subCalendarRight == null ? null : _secondaryDay(d, subCalendarRight!);
               final styleColor = isWeekend || isHoliday ? theme.colorScheme.primary : null;
-              return Container(
+              return GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: onDaySelected != null ? () => onDaySelected!(d) : null,
+                    child:Container(
                 width: dayColumnWidth,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: GestureDetector(
-                    onTap: onDaySelected != null ? () => onDaySelected!(d) : null,
-                    child: Column(
+                  child:  Column(
                       children: [
                         Text(
                           rotated[i],

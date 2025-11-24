@@ -2059,12 +2059,6 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
           _dragEnd = _dragEnd.add(duration);
         }
 
-        if (_dragStart.isAfter(_dragEnd)) {
-          final temp = _dragStart;
-          _dragStart = _dragEnd;
-          _dragEnd = temp;
-        }
-
         if (_dragEnd.difference(_dragStart).inMinutes < 30) {
           if (isTop) {
             _dragStart = _dragEnd.subtract(const Duration(minutes: 30));

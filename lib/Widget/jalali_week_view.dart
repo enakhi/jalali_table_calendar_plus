@@ -1333,7 +1333,7 @@ class _WeekTimeGridState extends State<_WeekTimeGrid> {
     final double height = ((endMinutesFromMidnight - startMinutesFromMidnight) / 60.0) * hourRowHeight;
 
     final double dayOffset = direction == TextDirection.rtl ?
-        (6 - startDayIndex) * dayColumnWidth : startDayIndex * dayColumnWidth;
+        (6 - endDayIndex) * dayColumnWidth : startDayIndex * dayColumnWidth;
     final double width = span * dayColumnWidth - 4;
 
     return Positioned(
@@ -1727,7 +1727,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
               ),
               // Left resize handle for start day
               Positioned(
-                left: 0,
+                left: widget.direction == TextDirection.rtl ? null : 0,
+                right: widget.direction == TextDirection.rtl ? 0 : null,
                 top: 12,
                 bottom: 12,
                 width: 12,
@@ -1740,7 +1741,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                     ),
                   ),
                   child: Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: widget.direction == TextDirection.rtl ? Alignment.centerRight :Alignment.centerLeft,
                     child: Container(
                       width: 3,
                       height: 30,
@@ -1754,7 +1755,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
               ),
               // Right resize handle for end day
               Positioned(
-                right: 0,
+                left: widget.direction == TextDirection.rtl ? 0 : null,
+                right: widget.direction == TextDirection.rtl ? null : 0,
                 top: 12,
                 bottom: 12,
                 width: 12,
@@ -1767,7 +1769,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                     ),
                   ),
                   child: Align(
-                    alignment: Alignment.centerRight,
+                    alignment: widget.direction == TextDirection.rtl ? Alignment.centerLeft : Alignment.centerRight,
                     child: Container(
                       width: 3,
                       height: 30,
@@ -1796,31 +1798,54 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     final localY = event.localPosition.dy;
     final localX = event.localPosition.dx;
 
+    // Log for debugging RTL dragging issue
+    print('DEBUG: _handlePointerDown called');
+    print('  Text direction: ${widget.direction}');
+    print('  Local X: $localX, Local Y: $localY');
+    print('  Width: ${size.width}, Height: ${size.height}');
+
     if (localY < 12) {
+      print('  Dragging: TOP');
       setState(() {
         _isDraggingTop = true;
         _isDraggingWithPointer = true;
       });
       widget.onDragStart?.call();
     } else if (localY > size.height - 12) {
+      print('  Dragging: BOTTOM');
       setState(() {
         _isDraggingBottom = true;
         _isDraggingWithPointer = true;
       });
       widget.onDragStart?.call();
     } else if (localX < 12) {
+      print('  Dragging: LEFT side');
       setState(() {
+        if(widget.direction == TextDirection.rtl){
+          _isDraggingRight = true;
+          print('  RTL: Interpreted as RIGHT drag');
+        }else{
         _isDraggingLeft = true;
+          print('  LTR: Interpreted as LEFT drag');
+        }
         _isDraggingWithPointer = true;
       });
       widget.onDragStart?.call();
     } else if (localX > size.width - 12) {
+      print('  Dragging: RIGHT side');
       setState(() {
+        if(widget.direction == TextDirection.rtl){
+          _isDraggingLeft = true;
+          print('  RTL: Interpreted as LEFT drag');
+        }else{
         _isDraggingRight = true;
+          print('  LTR: Interpreted as RIGHT drag');
+        }
         _isDraggingWithPointer = true;
       });
       widget.onDragStart?.call();
     } else {
+      print('  Dragging: MOVE');
       setState(() {
         _isDraggingMove = true;
         _isDraggingWithPointer = true;
@@ -2121,13 +2146,28 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
   }
 
   void _handleDayResizeByDelta(double deltaX, bool isStart) {
+    // Log for debugging RTL dragging issue
+    print('DEBUG: _handleDayResizeByDelta called');
+    print('  Text direction: ${widget.direction}');
+    print('  Delta X: $deltaX');
+    print('  Is start: $isStart');
+    
     // More responsive day changes - accumulate smaller deltas but require clear intent
     if (deltaX.abs() < 15.0) return; // Minimum drag threshold
 
     final dayPixels = widget.dayColumnWidth*2;
     // Use a smaller divisor for more responsive movement
-    final daysChange = (deltaX / (dayPixels / 4)).round(); // More sensitive scaling
+    var daysChange = (deltaX / (dayPixels / 4)).round(); // More sensitive scaling
+    
+    // For RTL, invert the horizontal direction
+    if (widget.direction == TextDirection.rtl) {
+      daysChange = -daysChange;
+      print('  RTL: Inverted days change to: $daysChange');
+    }
+    
     final clampedDaysChange = daysChange.clamp(-1, 1); // Limit to single day moves
+    
+    print('  Days change: $daysChange, Clamped: $clampedDaysChange');
 
     if (clampedDaysChange == 0) return;
 
@@ -2171,8 +2211,21 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
   }
 
   void _handleMoveDaysByDelta(double deltaX) {
+    // Log for debugging RTL dragging issue
+    print('DEBUG: _handleMoveDaysByDelta called');
+    print('  Text direction: ${widget.direction}');
+    print('  Delta X: $deltaX');
+    
     final dayPixels = widget.dayColumnWidth;
-    final daysChange = (deltaX / dayPixels).round();
+    var daysChange = (deltaX / dayPixels).round();
+    
+    // For RTL, invert the horizontal direction
+    if (widget.direction == TextDirection.rtl) {
+      daysChange = -daysChange;
+      print('  RTL: Inverted days change to: $daysChange');
+    }
+    
+    print('  Days change: $daysChange');
 
     if (daysChange == 0) return;
 

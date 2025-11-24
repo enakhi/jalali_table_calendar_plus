@@ -1589,15 +1589,18 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     super.didUpdateWidget(oldWidget);
     
     if (oldWidget.startDate != widget.startDate || oldWidget.endDate != widget.endDate) {
+      if (mounted) {
       setState(() {
         _dragStart = widget.startDate;
         _dragEnd = widget.endDate;
       });
       _resetPointerPositions();
+      }
     }
   }
   
   void hidePlaceholder() {
+    if (mounted) {
     _resetPointerPositions();
     setState(() {
       _isDraggingTop = false;
@@ -1605,6 +1608,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
       _isDraggingMove = false;
       _isDraggingWithPointer = false;
     });
+    }
   }
 
   @override
@@ -1732,7 +1736,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                 right: widget.direction == TextDirection.rtl ? 0 : null,
                 top: 12,
                 bottom: 12,
-                width: 12,
+                width: 18,
                 child: Container(
                   decoration: BoxDecoration(
                     color: _isDraggingLeft ? colorScheme.primary.withOpacity(0.4) : Colors.transparent,
@@ -1760,7 +1764,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
                 right: widget.direction == TextDirection.rtl ? null : 0,
                 top: 12,
                 bottom: 12,
-                width: 12,
+                width: 18,
                 child: Container(
                   decoration: BoxDecoration(
                     color: _isDraggingRight ? colorScheme.primary.withOpacity(0.4) : Colors.transparent,
@@ -2043,7 +2047,8 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
     final int roundedMinutesChange = (minutesChange / 15).round() * 15;
     
     if (roundedMinutesChange == 0) return;
-    
+    final oldDragEnd=_dragEnd;
+    final oldDragStart=_dragStart;
     final duration = Duration(minutes: roundedMinutesChange);
     
     // Log before resize
@@ -2058,12 +2063,13 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
         } else {
           _dragEnd = _dragEnd.add(duration);
         }
-
-        if (_dragEnd.difference(_dragStart).inMinutes < 30) {
+        int days=(oldDragEnd.difference(oldDragStart).inMinutes/1440).toInt();
+        if (_dragEnd.isBefore(_dragStart) || _dragEnd.difference(_dragStart).inMinutes-days*1440 < 30) {
+          
           if (isTop) {
-            _dragStart = _dragEnd.subtract(const Duration(minutes: 30));
+            _dragStart = _dragEnd.subtract(Duration(days: days,minutes: 30));
           } else {
-            _dragEnd = _dragStart.add(const Duration(minutes: 30));
+            _dragEnd = _dragStart.add(Duration(days: days,minutes: 30));
           }
         }
       });
@@ -2082,7 +2088,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
       // Apply bounds
       final int clampedStartMinutes = startMinutes.clamp(dayStartMinutes, dayEndMinutes);
       final int clampedEndMinutes = endMinutes.clamp(dayStartMinutes, dayEndMinutes);
-      
+      if (mounted) {
       setState(() {
         _dragStart = DateTime(
           _dragStart.year,
@@ -2132,6 +2138,7 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
           }
         }
       });
+      }
     }
     
     // Log after resize
@@ -2241,12 +2248,12 @@ class _EventPlaceholderState extends State<_EventPlaceholder> {
       newEnd = weekEnd;
       newStart = newEnd.subtract(Duration(days: dif));
     }
-
+if (mounted) {
     setState(() {
       _dragStart = DateTime(newStart.year, newStart.month, newStart.day, widget.startDate.hour, widget.startDate.minute);
       _dragEnd = DateTime(newEnd.year, newEnd.month, newEnd.day, widget.endDate.hour, widget.endDate.minute);
     });
-
+}
     widget.onResize(_dragStart, _dragEnd);
   }
 

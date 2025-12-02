@@ -608,7 +608,15 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     // Dynamically compute height for monthly view so the entire month grid fits without vertical scrolling.
     double _computeHeightForCurrentPage() {
       if (widget.viewType != CalendarViewType.monthly) {
-        return 356; // default height for non-monthly views
+        final dynamic date = _selectedPage;
+        final int daysInMonth = _getDaysInMonth(date);
+        final int startingWeekday = _getStartingWeekday(date, widget.mainCalendar);
+        final int slots = daysInMonth + (startingWeekday - 1);
+        final int rows = ((slots + 6) ~/ 7); // ceil(slots / 7)
+        const double cellExtent = 70; // must match GridView mainAxisExtent for monthly
+        const double rowSpacing = 0; // no spacing between rows
+        final double height = rows * cellExtent + (rows - 1) * rowSpacing;
+        return height;
       }
       try {
         final dynamic date = _selectedPage;
@@ -622,7 +630,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         return height;
       } catch (e) {
         debugPrint('ERROR: _computeHeightForCurrentPage failed: $e');
-        return 356;
+        return 410;
       }
     }
 

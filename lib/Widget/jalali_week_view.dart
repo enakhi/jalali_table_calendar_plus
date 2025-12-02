@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:shamsi_date/shamsi_date.dart';
 import 'package:hijri/hijri_calendar.dart';
-import 'package:jalali_table_calendar_plus/Widget/table_calendar.dart' show CalendarType, convertNumbers, getMonthNames, getWeekdayNames, OnPageRangeChanged;
+import 'package:jalali_table_calendar_plus/Widget/table_calendar.dart' show CalendarType, convertNumbers, convertNumbersBaseOfLanguge, getMonthNames, getWeekdayNames, OnPageRangeChanged;
 import 'package:jalali_table_calendar_plus/Utils/event.dart';
 import 'package:jalali_table_calendar_plus/Utils/options.dart';
 
@@ -426,6 +426,14 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
     }
   }
 
+  String _convertYear(int year) {
+    if (widget.option?.yearTitleBasedOn == DayTitleBasedOn.language) {
+      return convertNumbersBaseOfLanguge(year, widget.option?.language ?? 'en');
+    } else {
+      return convertNumbers(year, widget.mainCalendar);
+    }
+  }
+
   // Repository-backed holiday resolver used by header
   bool _isHolidayFromRepoOrFallback(DateTime date) {
     try {
@@ -454,7 +462,9 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
  
   void _emitHeaderChange(DateTime weekStart) {
     try {
-      final monthNames = getMonthNames(widget.mainCalendar);
+      final monthNames = getMonthNames(widget.mainCalendar,
+          language: widget.option?.language ?? 'en',
+          basedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar);
       final DateTime weekEnd = weekStart.add(const Duration(days: 6));
 
       late final int startYear;
@@ -491,13 +501,13 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
       String title;
       if (startYear == endYear) {
         if (startMonth == endMonth) {
-          title = '${monthNames[startMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)}';
+          title = '${monthNames[startMonth - 1]} ${_convertYear(startYear)}';
         } else {
-          title = '${monthNames[startMonth - 1]} – ${monthNames[endMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)}';
+          title = '${monthNames[startMonth - 1]} – ${monthNames[endMonth - 1]} ${_convertYear(startYear)}';
         }
       } else {
         title =
-            '${monthNames[startMonth - 1]} ${convertNumbers(startYear, widget.mainCalendar)} – ${monthNames[endMonth - 1]} ${convertNumbers(endYear, widget.mainCalendar)}';
+            '${monthNames[startMonth - 1]} ${_convertYear(startYear)} – ${monthNames[endMonth - 1]} ${_convertYear(endYear)}';
       }
 
       // Keep year/month payload based on the week start to preserve navigation semantics
@@ -643,7 +653,9 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
   }
 
   String _getHeaderText() {
-    final monthNames = getMonthNames(widget.mainCalendar);
+    final monthNames = getMonthNames(widget.mainCalendar,
+        language: widget.option?.language ?? 'en',
+        basedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar);
 
     final DateTime start = _currentWeekStart;
     final DateTime end = _currentWeekStart.add(const Duration(days: 6));
@@ -726,7 +738,9 @@ class _WeekDaysHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titles = customTitles ?? getWeekdayNames(mainCalendar, direction); // Base Saturday-first
+    final titles = customTitles ?? getWeekdayNames(mainCalendar, direction,
+        language: option?.language ?? 'en',
+        basedOn: option?.dayTitleBasedOn ?? DayTitleBasedOn.calendar); // Base Saturday-first
     final rotated = _rotateWeekdayTitles(titles, weekStartDay);
     return LayoutBuilder(
       builder: (context, constraints) {

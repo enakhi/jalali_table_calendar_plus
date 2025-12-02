@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 enum WeekStartDay { saturday, sunday, monday, tuesday, wednesday, thursday, friday }
 
+enum DayTitleBasedOn { language, calendar }
+
 class JalaliTableCalendarOption {
   final TextStyle? daysOfWeekStyle;
   final bool showHeader;
@@ -17,6 +19,10 @@ class JalaliTableCalendarOption {
   final EdgeInsets? headerPadding;
   final WeekStartDay weekStartDay;
   final List<int>? weekendDays;
+  final DayTitleBasedOn dayTitleBasedOn;
+  final DayTitleBasedOn monthTitleBasedOn;
+  final DayTitleBasedOn yearTitleBasedOn;
+  final String language;
 
   JalaliTableCalendarOption({
     this.daysOfWeekStyle,
@@ -33,6 +39,10 @@ class JalaliTableCalendarOption {
     this.headerPadding,
     this.weekStartDay = WeekStartDay.saturday,
     this.weekendDays,
+    this.dayTitleBasedOn = DayTitleBasedOn.calendar,
+    this.monthTitleBasedOn = DayTitleBasedOn.calendar,
+    this.yearTitleBasedOn = DayTitleBasedOn.calendar,
+    this.language = 'en',
   }) : assert(daysOfWeekTitles == null || daysOfWeekTitles.length == 7,
             "daysOfWeekTitles length must be 7");
 }

@@ -99,63 +99,235 @@ String convertNumbers(int number, CalendarType calendarType) {
 }
 
 
-List<String> getMonthNames(CalendarType calendarType) {
-  switch (calendarType) {
-    case CalendarType.jalali:
-      return [
-        'فروردین',
-        'اردیبهشت',
-        'خرداد',
-        'تیر',
-        'مرداد',
-        'شهریور',
-        'مهر',
-        'آبان',
-        'آذر',
-        'دی',
-        'بهمن',
-        'اسفند',
-      ];
-    case CalendarType.hijri:
-      return [
-        'محرم',
-        'صفر',
-        'ربیع‌الاول',
-        'ربیع‌الثانی',
-        'جمادی‌الاول',
-        'جمادی‌الثانی',
-        'رجب',
-        'شعبان',
-        'رمضان',
-        'شوال',
-        'ذی‌قعده',
-        'ذی‌حجه',
-      ];
-    case CalendarType.gregorian:
-      return [
-        'January',
-        'February',
-        'March',
-        'April',
-        'May',
-        'June',
-        'July',
-        'August',
-        'September',
-        'October',
-        'November',
-        'December',
-      ];
+List<String> getMonthNames(CalendarType calendarType, {String language = 'en', DayTitleBasedOn basedOn = DayTitleBasedOn.calendar}) {
+  if (basedOn == DayTitleBasedOn.language) {
+    return getMonthNamesByLanguage(calendarType, language);
+  } else {
+    switch (calendarType) {
+      case CalendarType.jalali:
+        return [
+          'فروردین',
+          'اردیبهشت',
+          'خرداد',
+          'تیر',
+          'مرداد',
+          'شهریور',
+          'مهر',
+          'آبان',
+          'آذر',
+          'دی',
+          'بهمن',
+          'اسفند',
+        ];
+      case CalendarType.hijri:
+        return [
+          'محرم',
+          'صفر',
+          'ربیع‌الاول',
+          'ربیع‌الثانی',
+          'جمادی‌الاول',
+          'جمادی‌الثانی',
+          'رجب',
+          'شعبان',
+          'رمضان',
+          'شوال',
+          'ذی‌قعده',
+          'ذی‌حجه',
+        ];
+      case CalendarType.gregorian:
+        return [
+          'January',
+          'February',
+          'March',
+          'April',
+          'May',
+          'June',
+          'July',
+          'August',
+          'September',
+          'October',
+          'November',
+          'December',
+        ];
+    }
   }
 }
 
-List<String> getWeekdayNames(CalendarType calendarType, TextDirection direction) {
+List<String> getMonthNamesByLanguage(CalendarType calendarType, String language) {
   switch (calendarType) {
     case CalendarType.jalali:
-      return ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+      switch (language) {
+        case 'fa':
+          return [
+            'فروردین',
+            'اردیبهشت',
+            'خرداد',
+            'تیر',
+            'مرداد',
+            'شهریور',
+            'مهر',
+            'آبان',
+            'آذر',
+            'دی',
+            'بهمن',
+            'اسفند',
+          ];
+        case 'ar':
+          return [
+  'فَروَردين',
+  'أرديبهِشت',
+  'خُرْداد',
+  'تير',
+  'مُرْداد',
+  'شهْريور',
+  'مِهْر',
+  'آبَان',
+  'آذَر',
+  'دِی',
+  'بَهْمَن',
+  'اسْفَند',
+];
+        case 'en':
+        default:
+          return [
+            'Farvardin',
+            'Ordibehesht',
+            'Khordad',
+            'Tir',
+            'Mordad',
+            'Shahrivar',
+            'Mehr',
+            'Aban',
+            'Azar',
+            'Dey',
+            'Bahman',
+            'Esfand',
+          ];
+      }
     case CalendarType.hijri:
-      return ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+      switch (language) {
+        case 'ar':
+          return [
+            'محرم',
+            'صفر',
+            'ربیع‌الاول',
+            'ربیع‌الثانی',
+            'جمادی‌الاول',
+            'جمادی‌الثانی',
+            'رجب',
+            'شعبان',
+            'رمضان',
+            'شوال',
+            'ذی‌قعده',
+            'ذی‌حجه',
+          ];
+        case 'fa':
+          return [
+            'محرم',
+            'صفر',
+            'ربیع‌الاول',
+            'ربیع‌الثانی',
+            'جمادی‌الاول',
+            'جمادی‌الثانی',
+            'رجب',
+            'شعبان',
+            'رمضان',
+            'شوال',
+            'ذی‌قعده',
+            'ذی‌حجه',
+          ];
+        case 'en':
+        default:
+          return [
+            'Muharram',
+            'Safar',
+            'Rabi\' al-awwal',
+            'Rabi\' al-thani',
+            'Jumada al-awwal',
+            'Jumada al-thani',
+            'Rajab',
+            'Sha\'ban',
+            'Ramadan',
+            'Shawwal',
+            'Dhu al-Qi\'dah',
+            'Dhu al-Hijjah',
+          ];
+      }
     case CalendarType.gregorian:
+      switch (language) {
+        case 'fa':
+          return [
+            'ژانویه',
+            'فوریه',
+            'مارس',
+            'آوریل',
+            'مه',
+            'ژوئن',
+            'ژوئیه',
+            'اوت',
+            'سپتامبر',
+            'اکتبر',
+            'نوامبر',
+            'دسامبر',
+          ];
+        case 'ar':
+          return [
+            'يناير',
+            'فبراير',
+            'مارس',
+            'أبريل',
+            'مايو',
+            'يونيو',
+            'يوليو',
+            'أغسطس',
+            'سبتمبر',
+            'أكتوبر',
+            'نوفمبر',
+            'ديسمبر',
+          ];
+        case 'en':
+        default:
+          return [
+            'January',
+            'February',
+            'March',
+            'April',
+            'May',
+            'June',
+            'July',
+            'August',
+            'September',
+            'October',
+            'November',
+            'December',
+          ];
+      }
+  }
+}
+
+List<String> getWeekdayNames(CalendarType calendarType, TextDirection direction, {String language = 'en', DayTitleBasedOn basedOn = DayTitleBasedOn.calendar}) {
+  if (basedOn == DayTitleBasedOn.language) {
+    return getWeekdayNamesByLanguage(language);
+  } else {
+    switch (calendarType) {
+      case CalendarType.jalali:
+        return ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+      case CalendarType.hijri:
+        return ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+      case CalendarType.gregorian:
+        return ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    }
+  }
+}
+
+List<String> getWeekdayNamesByLanguage(String language) {
+  switch (language) {
+    case 'fa':
+      return ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+    case 'ar':
+      return ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+    case 'en':
+    default:
       return ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   }
 }
@@ -298,9 +470,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
 
   @override
   void initState() {
-    debugPrint('DEBUG: JalaliTableCalendar initState - mainCalendar: ${widget.mainCalendar.name}');
-    debugPrint('DEBUG: subCalendarLeft: ${widget.subCalendarLeft?.name ?? 'null'}');
-    debugPrint('DEBUG: subCalendarRight: ${widget.subCalendarRight?.name ?? 'null'}');
+
     
     if (widget.initialDate != null) {
       _selectedDate = _convertToMainCalendar(widget.initialDate!);
@@ -343,7 +513,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
             m = dateObj.month;
             break;
         }
-        final monthNames = getMonthNames(widget.mainCalendar)[m - 1];
+        final monthNames = getMonthNames(widget.mainCalendar,
+            language: widget.option?.language ?? 'en',
+            basedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar)[m - 1];
         final title = '$monthNames $y';
         widget.onHeaderTextChanged?.call(title, y, m);
       } catch (e) {
@@ -380,7 +552,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
 
   dynamic _convertToMainCalendar(DateTime date) {
-    debugPrint('DEBUG: _convertToMainCalendar called with date: $date, type: ${widget.mainCalendar.name}');
     dynamic result;
     try {
       switch (widget.mainCalendar) {
@@ -410,12 +581,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           break;
       }
     }
-    debugPrint('DEBUG: _convertToMainCalendar result type: ${result.runtimeType}, value: $result');
     return result;
   }
 
   int _calculateInitialPage(dynamic date) {
-    debugPrint('DEBUG: _calculateInitialPage called with date: $date, type: ${date.runtimeType}, calendar: ${widget.mainCalendar.name}');
     try {
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -445,7 +614,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   @override
   Widget build(BuildContext context) {
     themeData = Theme.of(context);
-    debugPrint('DEBUG: JalaliTableCalendar build - mainCalendar: ${widget.mainCalendar.name}, selectedPage: $_selectedPage');
     if (!widget.range) {
       _startSelectDate = null;
       _endSelectDate = null;
@@ -466,7 +634,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
 
   Widget _buildHeader() {
-    final List<String> monthNames = getMonthNames(widget.mainCalendar);
+    final List<String> monthNames = getMonthNames(widget.mainCalendar,
+        language: widget.option?.language ?? 'en',
+        basedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar);
     bool showHeaderArrows = widget.option?.showHeaderArrows ?? true;
 
     debugPrint('DEBUG: _buildHeader - selectedPage: $_selectedPage, type: ${_selectedPage.runtimeType}');
@@ -540,6 +710,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   month: calendarMonth,
                   direction: widget.direction,
                   mainCalendar: widget.mainCalendar,
+                  dayTitleBasedOn: widget.option?.dayTitleBasedOn ?? DayTitleBasedOn.calendar,
+                  monthTitleBasedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar,
+                  yearTitleBasedOn: widget.option?.yearTitleBasedOn ?? DayTitleBasedOn.calendar,
+                  language: widget.option?.language ?? 'en',
                 ),
               );
               if (newPage != null) {
@@ -547,7 +721,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
               }
             },
             child: Text(
-              '${monthNames[calendarMonth - 1]} ${convertNumbers(calendarYear, widget.mainCalendar)}',
+              '${monthNames[calendarMonth - 1]} ${_convertYear(calendarYear)}',
               style:
                   widget.option?.headerStyle ?? const TextStyle(fontSize: 20.0),
             ),
@@ -568,7 +742,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
 
   Widget _buildDaysOfWeek() {
     // Base names are Saturday-first for all calendar types
-    final List<String> base = getWeekdayNames(widget.mainCalendar, widget.direction);
+    final List<String> base = getWeekdayNames(widget.mainCalendar, widget.direction,
+        language: widget.option?.language ?? 'en',
+        basedOn: widget.option?.dayTitleBasedOn ?? DayTitleBasedOn.calendar);
     // Allow custom titles; still rotate them according to selected start day
     final List<String> titles = widget.option?.daysOfWeekTitles ?? base;
     final WeekStartDay start = widget.option?.weekStartDay ?? WeekStartDay.saturday;
@@ -593,11 +769,20 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 5.0),
           child: Center(
-            child: Text(
-              rotated[index],
-              style: widget.option?.daysOfWeekStyle?.copyWith(color: weekendColor) ??
-                  TextStyle(color: weekendColor,fontWeight: FontWeight.w600),
-            ),
+            child: FittedBox(
+  fit: BoxFit.scaleDown,
+  child: Text(
+    rotated[index],
+    style: widget.option?.daysOfWeekStyle?.copyWith(
+          color: weekendColor,
+        ) ??
+        TextStyle(
+          color: weekendColor,
+          fontWeight: FontWeight.w600,
+        ),
+    textAlign: TextAlign.center,
+  ),
+),
           ),
         );
       }),
@@ -700,7 +885,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                 m = dateObj.month;
                 break;
             }
-            final monthNames = getMonthNames(widget.mainCalendar)[m - 1];
+            final monthNames = getMonthNames(widget.mainCalendar,
+                language: widget.option?.language ?? 'en',
+                basedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar)[m - 1];
             final title = '$monthNames $y';
             widget.onHeaderTextChanged?.call(title, y, m);
           } catch (e) {
@@ -708,12 +895,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           }
         },
         itemBuilder: (context, index) {
-          debugPrint('DEBUG: PageView itemBuilder - index: $index');
           var date = _getDateFromPage(index);
-          debugPrint('DEBUG: PageView itemBuilder - date: $date, type: ${date.runtimeType}');
           int daysInMonth = _getDaysInMonth(date);
           int startingWeekday = _getStartingWeekday(date, widget.mainCalendar);
-          debugPrint('DEBUG: PageView itemBuilder - daysInMonth: $daysInMonth, startingWeekday: $startingWeekday');
 
           // Extract correct year and month based on calendar type
           int calendarYear, calendarMonth;
@@ -732,7 +916,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
               break;
           }
 
-          debugPrint('DEBUG: PageView itemBuilder - calendarYear: $calendarYear, calendarMonth: $calendarMonth');
           return _buildGridView(calendarYear, calendarMonth, daysInMonth, startingWeekday);
         },
       ),
@@ -751,7 +934,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
   
   dynamic _getDateFromPage(int page) {
-    debugPrint('DEBUG: _getDateFromPage called with page: $page, calendar: ${widget.mainCalendar.name}');
     dynamic result;
     try {
       // Add bounds checking to prevent extreme year values
@@ -787,7 +969,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           break;
       }
     } catch (e) {
-      debugPrint('ERROR: _getDateFromPage failed: $e');
       // Fallback to current date in the appropriate calendar type
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -801,12 +982,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           break;
       }
     }
-    debugPrint('DEBUG: _getDateFromPage result: $result, type: ${result.runtimeType}');
     return result;
   }
   
   int _getDaysInMonth(dynamic date) {
-    debugPrint('DEBUG: _getDaysInMonth called with date: $date, type: ${date.runtimeType}, calendar: ${widget.mainCalendar.name}');
     try {
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -995,7 +1174,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
   
   dynamic _createDateFromMainCalendar(int year, int month, int day) {
-    debugPrint('DEBUG: _createDateFromMainCalendar called with year: $year, month: $month, day: $day, calendar: ${widget.mainCalendar.name}');
     dynamic result;
     try {
       switch (widget.mainCalendar) {
@@ -1011,7 +1189,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           break;
       }
     } catch (e) {
-      debugPrint('ERROR: _createDateFromMainCalendar failed: $e');
       // Fallback to current date in the appropriate calendar type
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -1025,12 +1202,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           break;
       }
     }
-    debugPrint('DEBUG: _createDateFromMainCalendar result: $result, type: ${result.runtimeType}');
     return result;
   }
   
   DateTime _getDateTimeFromCalendar(dynamic date) {
-    debugPrint('DEBUG: _getDateTimeFromCalendar called with date: $date, type: ${date.runtimeType}, calendar: ${widget.mainCalendar.name}');
     DateTime result;
     
     try {
@@ -1075,11 +1250,9 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         }
       }
     } catch (e) {
-      debugPrint('ERROR: _getDateTimeFromCalendar failed: $e');
       result = DateTime.now(); // Fallback to current date on any error
     }
     
-    debugPrint('DEBUG: _getDateTimeFromCalendar result: $result');
     return result;
   }
   
@@ -1102,6 +1275,14 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         return [5]; // Friday
       case CalendarType.gregorian:
         return [7]; // Sunday
+    }
+  }
+
+  String _convertYear(int year) {
+    if (widget.option?.yearTitleBasedOn == DayTitleBasedOn.language) {
+      return convertNumbersBaseOfLanguge(year, widget.option?.language ?? 'en');
+    } else {
+      return convertNumbers(year, widget.mainCalendar);
     }
   }
 
@@ -1510,13 +1691,12 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
       }
       return false;
     } catch (e) {
-      debugPrint('ERROR: _isHolyDay failed: $e');
+      // silent error for out of range
       return false; // Default to not holy day if there's an error
     }
   }
   
   int _getDayFromCalendar(dynamic date) {
-    debugPrint('DEBUG: _getDayFromCalendar called with date: $date, type: ${date.runtimeType}, calendar: ${widget.mainCalendar.name}');
     try {
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -1527,7 +1707,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           return date.day;
       }
     } catch (e) {
-      debugPrint('ERROR: _getDayFromCalendar failed: $e');
       // Fallback to current day
       DateTime now = DateTime.now();
       switch (widget.mainCalendar) {
@@ -1542,7 +1721,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
   
   int _getMonthFromCalendar(dynamic date) {
-    debugPrint('DEBUG: _getMonthFromCalendar called with date: $date, type: ${date.runtimeType}, calendar: ${widget.mainCalendar.name}');
     try {
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -1568,7 +1746,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
   
   int _getYearFromCalendar(dynamic date) {
-    debugPrint('DEBUG: _getYearFromCalendar called with date: $date, type: ${date.runtimeType}, calendar: ${widget.mainCalendar.name}');
     try {
       switch (widget.mainCalendar) {
         case CalendarType.jalali:
@@ -1594,13 +1771,10 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
 
   Widget _buildDayCellWithSecondaryCalendars(dynamic date, Color? styleColor, [bool isSelected = false]) {
-    debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars called with date: $date, type: ${date.runtimeType}');
     DateTime dateTime;
     try {
       dateTime = _getDateTimeFromCalendar(date);
-      debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars - converted to DateTime: $dateTime');
     } catch (e) {
-      debugPrint('ERROR: _buildDayCellWithSecondaryCalendars failed to get DateTime: $e');
       dateTime = DateTime.now();
     }
     
@@ -1611,9 +1785,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     // Only show secondary calendar text if the calendar type is not null
     if (widget.subCalendarLeft != null) {
       try {
-        debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars - getting left calendar for type: ${widget.subCalendarLeft!.name}');
         leftCalendarText = _getSecondaryCalendarDay(dateTime, widget.subCalendarLeft!);
-        debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars - left calendar result: $leftCalendarText');
       } catch (e) {
         debugPrint('ERROR: _buildDayCellWithSecondaryCalendars failed to get left calendar: $e');
       }
@@ -1622,9 +1794,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
     // Only show secondary calendar text if the calendar type is not null
     if (widget.subCalendarRight != null) {
       try {
-        debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars - getting right calendar for type: ${widget.subCalendarRight!.name}');
         rightCalendarText = _getSecondaryCalendarDay(dateTime, widget.subCalendarRight!);
-        debugPrint('DEBUG: _buildDayCellWithSecondaryCalendars - right calendar result: $rightCalendarText');
       } catch (e) {
         debugPrint('ERROR: _buildDayCellWithSecondaryCalendars failed to get right calendar: $e');
       }
@@ -1826,8 +1996,15 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   }
   
   String _getSecondaryCalendarDay(DateTime dateTime, CalendarType calendarType) {
-    debugPrint('DEBUG: _getSecondaryCalendarDay called with dateTime: $dateTime, calendarType: ${calendarType.name}');
-    String result;
+    // DEBUG print removed for production
+    String result = '';
+    if (calendarType == CalendarType.hijri) {
+      final hijriMin = DateTime(1937, 3, 14);
+      final hijriMax = DateTime(2077, 11, 16);
+      if (dateTime.isBefore(hijriMin) || dateTime.isAfter(hijriMax)) {
+        return result;
+      }
+    }
     try {
       switch (calendarType) {
         case CalendarType.jalali:
@@ -1844,24 +2021,8 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
           break;
       }
     } catch (e) {
-      debugPrint('ERROR: _getSecondaryCalendarDay failed: $e');
-      // Fallback to current day in the appropriate calendar type
-      DateTime now = DateTime.now();
-      switch (calendarType) {
-        case CalendarType.jalali:
-          Jalali jalali = Jalali.fromDateTime(now);
-          result = convertNumbers(jalali.day, calendarType);
-          break;
-        case CalendarType.hijri:
-          HijriCalendar hijri = HijriCalendar.fromDate(now);
-          result = convertNumbers(hijri.hDay, calendarType);
-          break;
-        case CalendarType.gregorian:
-          result = now.day.toString();
-          break;
-      }
+      result = '';
     }
-    debugPrint('DEBUG: _getSecondaryCalendarDay result: $result');
     return result;
   }
 }

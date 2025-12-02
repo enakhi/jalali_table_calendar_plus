@@ -8,12 +8,20 @@ class SelectYearMonthDialog extends StatelessWidget {
     required this.month,
     required this.direction,
     required this.mainCalendar,
+    required this.dayTitleBasedOn,
+    required this.monthTitleBasedOn,
+    required this.yearTitleBasedOn,
+    required this.language,
   });
 
   final int year;
   final int month;
   final TextDirection direction;
   final CalendarType mainCalendar;
+  final DayTitleBasedOn dayTitleBasedOn;
+  final DayTitleBasedOn monthTitleBasedOn;
+  final DayTitleBasedOn yearTitleBasedOn;
+  final String language;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +31,10 @@ class SelectYearMonthDialog extends StatelessWidget {
         month: month,
         direction: direction,
         mainCalendar: mainCalendar,
+        dayTitleBasedOn: dayTitleBasedOn,
+        monthTitleBasedOn: monthTitleBasedOn,
+        yearTitleBasedOn: yearTitleBasedOn,
+        language: language,
       ),
     );
   }

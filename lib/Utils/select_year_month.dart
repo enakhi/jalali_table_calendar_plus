@@ -4,12 +4,23 @@ enum SelectMode { year, month }
 
 class SelectYearMonth extends StatefulWidget {
   const SelectYearMonth(
-      {required this.month, required this.year, required this.direction, required this.mainCalendar});
+      {required this.month, 
+       required this.year, 
+       required this.direction, 
+       required this.mainCalendar,
+       required this.dayTitleBasedOn,
+       required this.monthTitleBasedOn,
+       required this.yearTitleBasedOn,
+       required this.language});
 
   final int year;
   final int month;
   final TextDirection direction;
   final CalendarType mainCalendar;
+  final DayTitleBasedOn dayTitleBasedOn;
+  final DayTitleBasedOn monthTitleBasedOn;
+  final DayTitleBasedOn yearTitleBasedOn;
+  final String language;
 
   @override
   State<SelectYearMonth> createState() => SelectYearMonthState();
@@ -58,16 +69,25 @@ class SelectYearMonthState extends State<SelectYearMonth> {
   Widget build(BuildContext context) {
     double height = MediaQuery.of(context).size.height;
     
-    // Get appropriate month names for the calendar type
-    List<String> monthNames = _getMonthNamesForCalendar(widget.mainCalendar);
+    // Get appropriate month names for the calendar type based on language and title preference
+    List<String> monthNames;
+    if (widget.monthTitleBasedOn == DayTitleBasedOn.language) {
+      monthNames = getMonthNamesByLanguage(widget.mainCalendar, widget.language);
+    } else {
+      monthNames = _getMonthNamesForCalendar(widget.mainCalendar);
+    }
     String yearFormat(int year) {
-      switch (widget.mainCalendar) {
-        case CalendarType.jalali:
-          return _convertToPersianNumbers(year);
-        case CalendarType.hijri:
-          return _convertToArabicNumbers(year);
-        case CalendarType.gregorian:
-          return year.toString();
+      if (widget.yearTitleBasedOn == DayTitleBasedOn.language) {
+        return convertNumbersBaseOfLanguge(year, widget.language);
+      } else {
+        switch (widget.mainCalendar) {
+          case CalendarType.jalali:
+            return _convertToPersianNumbers(year);
+          case CalendarType.hijri:
+            return _convertToArabicNumbers(year);
+          case CalendarType.gregorian:
+            return year.toString();
+        }
       }
     }
     

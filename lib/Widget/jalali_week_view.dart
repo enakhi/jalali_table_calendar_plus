@@ -798,13 +798,16 @@ class _WeekDaysHeader extends StatelessWidget {
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
+                              colors:(isToday && option?.todayBackgroundColor != null)?[
+                                option!.todayBackgroundColor!,
+                                option!.todayBackgroundColor!,
+                              ]: [
                                 Colors.white.withOpacity(0.05),
                                 Colors.white.withOpacity(0.08),
                               ],
                             ),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withOpacity(isToday ? 0.6 : 0.3),
                               width: 1.5,
                             ),
                             boxShadow: [
@@ -819,17 +822,20 @@ class _WeekDaysHeader extends StatelessWidget {
                             color: option!.todayBackgroundColor,
                           ) : null,
                           child: Center(
+                              child: FittedBox(
+                            fit: BoxFit.scaleDown,
                             child: Text(
                               dayNum,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: isToday && option?.todayOnColor != null && !isSelected
+                                color: isToday &&
+                                        option?.todayOnColor != null 
                                     ? option!.todayOnColor
                                     : styleColor,
                               ),
                             ),
-                          ),
+                          )),
                         ),
                         const SizedBox(height: 2),
                         Padding(padding: const EdgeInsets.only(left:7,right: 7,top: 0,bottom: 0),child:

@@ -1801,7 +1801,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         debugPrint('ERROR: _buildDayCellWithSecondaryCalendars failed to get right calendar: $e');
       }
     }
-    
+    bool isToday = _isToday(date);
     if (isSelected) {
       bool isDark = themeData.brightness == Brightness.dark;
       return Container(
@@ -1820,14 +1820,18 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                     child: Container(
-                      width: 38,
+                      width: 35,
                       height: 35,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: isDark
+                          colors: isToday && widget.option?.todayBackgroundColor != null ?
+                          [
+                            widget.option!.todayBackgroundColor!.withValues(alpha: 0.8),
+                            widget.option!.todayBackgroundColor!.withValues(alpha: 0.8),
+                          ] : isDark
                               ? [
                             Colors.white.withValues(alpha: 0.05),
                             Colors.white.withValues(alpha: 0.08),
@@ -1839,7 +1843,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                         ),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
+                          color: Colors.white.withValues(alpha: isToday ? 0.6 : 0.3),
                           width: 1.5,
                         ),
                         boxShadow: [
@@ -1853,20 +1857,28 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                         ],
                       ),
                       child: Center(
-                        child: Text(
-                          convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
-                          style: widget.option?.daysStyle
-                                  ?.copyWith(
-                                    color: styleColor,
+                        child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              convertNumbers(_getDayFromCalendar(date),
+                                  widget.mainCalendar),
+                              style: widget.option?.daysStyle?.copyWith(
+                                    color: isToday &&
+                                        widget.option?.todayOnColor != null
+                                    ? widget.option!.todayOnColor
+                                    : styleColor,
                                     fontWeight: FontWeight.w900,
                                     fontSize: 22,
                                   ) ??
-                              TextStyle(
-                                color: styleColor,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 22,
-                              ),
-                        ),
+                                  TextStyle(
+                                    color: isToday &&
+                                        widget.option?.todayOnColor != null
+                                    ? widget.option!.todayOnColor
+                                    : styleColor,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22,
+                                  ),
+                            )),
                       ),
                     ),
                   ),
@@ -1911,8 +1923,6 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         ),
       );
     } else {
-      // Check if this is today's date
-      bool isToday = _isToday(date);
       
       return Container(
         decoration: BoxDecoration(
@@ -1926,8 +1936,8 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
               right: 0,
               child: Center(
                 child: Container(
-                  width: 38,
-                  height: 36,
+                  width: 35,
+                  height: 35,
                   decoration: isToday && widget.option?.todayBackgroundColor != null
                       ? BoxDecoration(
                           color: widget.option!.todayBackgroundColor,
@@ -1935,24 +1945,28 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                         )
                       : null,
                   child: Center(
-                    child: Text(
-                      convertNumbers(_getDayFromCalendar(date), widget.mainCalendar),
-                      style: widget.option?.daysStyle
-                              ?.copyWith(
-                                color: isToday && widget.option?.todayOnColor != null
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          convertNumbers(
+                              _getDayFromCalendar(date), widget.mainCalendar),
+                          style: widget.option?.daysStyle?.copyWith(
+                                color: isToday &&
+                                        widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 22,
                               ) ??
-                          TextStyle(
-                            color: isToday && widget.option?.todayOnColor != null
-                                ? widget.option!.todayOnColor
-                                : styleColor,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 22,
-                          ),
-                    ),
+                              TextStyle(
+                                color: isToday &&
+                                        widget.option?.todayOnColor != null
+                                    ? widget.option!.todayOnColor
+                                    : styleColor,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 22,
+                              ),
+                        )),
                   ),
                 ),
               ),

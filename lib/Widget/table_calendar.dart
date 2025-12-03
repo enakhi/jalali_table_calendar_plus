@@ -769,20 +769,22 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 5.0),
           child: Center(
-            child: FittedBox(
-  fit: BoxFit.scaleDown,
-  child: Text(
-    rotated[index],
-    style: widget.option?.daysOfWeekStyle?.copyWith(
-          color: weekendColor,
-        ) ??
-        TextStyle(
-          color: weekendColor,
-          fontWeight: FontWeight.w600,
-        ),
-    textAlign: TextAlign.center,
-  ),
-),
+            child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    rotated[index],
+                    style: widget.option?.daysOfWeekStyle?.copyWith(
+                          color: weekendColor,
+                        ) ??
+                        TextStyle(
+                          color: weekendColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                )),
           ),
         );
       }),

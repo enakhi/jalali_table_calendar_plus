@@ -774,13 +774,19 @@ class _WeekDaysHeader extends StatelessWidget {
                 width: dayColumnWidth,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
-                  child:  Column(
+                  child: Column(
                       children: [
-                        Text(
-                          rotated[i],
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: styleColor,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              rotated[i],
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: styleColor,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),

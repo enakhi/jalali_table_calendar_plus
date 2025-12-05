@@ -6,6 +6,7 @@ Future<DateTime?> pickDate({
   TextDirection direction = TextDirection.rtl,
   Map<DateTime, List>? events,
   MarkerBuilder? marker,
+  JalaliTableCalendarOption? option,
   DateTime? initialDate,
   bool useOfficialHolyDays = true,
   List<HolyDay> customHolyDays = const [],
@@ -21,6 +22,7 @@ Future<DateTime?> pickDate({
       customHolyDays,
       initialDate,
       mainCalendar,
+      option,
     ),
   );
   return selectedDate;
@@ -35,6 +37,7 @@ class _TableCalendarPicker extends StatelessWidget {
     this.customHolyDays,
     this.initialDate,
     this.mainCalendar,
+    this.option
   );
 
   final TextDirection direction;
@@ -44,7 +47,7 @@ class _TableCalendarPicker extends StatelessWidget {
   final bool useOfficialHolyDays;
   final List<HolyDay> customHolyDays;
   final CalendarType mainCalendar;
-
+  final JalaliTableCalendarOption? option;
   @override
   Widget build(BuildContext context) {
     double width = MediaQuery.of(context).size.width / 100;
@@ -66,18 +69,32 @@ class _TableCalendarPicker extends StatelessWidget {
                 events: events,
                 useOfficialHolyDays: useOfficialHolyDays,
                 marker: marker,
+                option: option,
                 mainCalendar: mainCalendar,
-                viewType: CalendarViewType.monthly,
+                viewType: CalendarViewType.schedule,
                 onDaySelected: (date) {
                   selectedDate = date;
                 },
               ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, selectedDate);
-              },
-              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, selectedDate);
+                  },
+                  child: Text(MaterialLocalizations.of(context).okButtonLabel),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+                ),
+              ],
             )
           ],
         ),

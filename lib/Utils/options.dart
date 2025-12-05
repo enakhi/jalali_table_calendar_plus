@@ -15,6 +15,8 @@ class JalaliTableCalendarOption {
   final Color? selectedDayColor;
   final Color? todayBackgroundColor;
   final Color? todayOnColor;
+  final Color? selectedBackgroundColor;
+  final Color? selectedOnColor;
   final List<String>? daysOfWeekTitles;
   final EdgeInsets? headerPadding;
   final WeekStartDay weekStartDay;
@@ -35,6 +37,8 @@ class JalaliTableCalendarOption {
     this.selectedDayShapeColor,
     this.todayBackgroundColor,
     this.todayOnColor,
+    this.selectedBackgroundColor,
+    this.selectedOnColor,
     this.daysOfWeekTitles,
     this.headerPadding,
     this.weekStartDay = WeekStartDay.saturday,

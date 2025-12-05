@@ -794,13 +794,14 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
   Widget _buildCalendarPageView() {
     // Dynamically compute height for monthly view so the entire month grid fits without vertical scrolling.
     double _computeHeightForCurrentPage() {
+      bool noSecondary=widget.subCalendarLeft==null && widget.subCalendarRight==null;
       if (widget.viewType != CalendarViewType.monthly) {
         final dynamic date = _selectedPage;
         final int daysInMonth = _getDaysInMonth(date);
         final int startingWeekday = _getStartingWeekday(date, widget.mainCalendar);
         final int slots = daysInMonth + (startingWeekday - 1);
         final int rows = ((slots + 6) ~/ 7); // ceil(slots / 7)
-        const double cellExtent = 70; // must match GridView mainAxisExtent for monthly
+        double cellExtent = noSecondary ? 50: 70; // must match GridView mainAxisExtent for monthly
         const double rowSpacing = 0; // no spacing between rows
         final double height = rows * cellExtent + (rows - 1) * rowSpacing;
         return height;
@@ -811,7 +812,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
         final int startingWeekday = _getStartingWeekday(date, widget.mainCalendar);
         final int slots = daysInMonth + (startingWeekday - 1);
         final int rows = ((slots + 6) ~/ 7); // ceil(slots / 7)
-        const double cellExtent = 106; // must match GridView mainAxisExtent for monthly
+        double cellExtent = noSecondary?70:106; // must match GridView mainAxisExtent for monthly
         const double rowSpacing = 0; // no spacing between rows
         final double height = rows * cellExtent + (rows - 1) * rowSpacing;
         return height;
@@ -1073,7 +1074,8 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
       int year, int month, int daysInMonth, int startingWeekday) {
     int slots = daysInMonth + (startingWeekday - 1);
     int numRows = ((slots + 6) ~/ 7);
-    double cellHeight = widget.viewType == CalendarViewType.monthly ? 106 : 68;
+    bool noSecondary=widget.subCalendarLeft==null && widget.subCalendarRight==null;
+    double cellHeight = widget.viewType == CalendarViewType.monthly ? noSecondary?76:106 : noSecondary?50:68;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(numRows, (rowIndex) {
@@ -1827,7 +1829,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: isToday && widget.option?.todayBackgroundColor != null ?
+                          colors: widget.option?.selectedBackgroundColor != null ? [widget.option!.selectedBackgroundColor!,widget.option!.selectedBackgroundColor!] : isToday && widget.option?.todayBackgroundColor != null ?
                           [
                             widget.option!.todayBackgroundColor!.withValues(alpha: 0.8),
                             widget.option!.todayBackgroundColor!.withValues(alpha: 0.8),
@@ -1863,7 +1865,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                               convertNumbers(_getDayFromCalendar(date),
                                   widget.mainCalendar),
                               style: widget.option?.daysStyle?.copyWith(
-                                    color: isToday &&
+                                    color: widget.option?.selectedOnColor != null ? widget.option!.selectedOnColor! : isToday &&
                                         widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,
@@ -1871,7 +1873,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                                     fontSize: 22,
                                   ) ??
                                   TextStyle(
-                                    color: isToday &&
+                                    color: widget.option?.selectedOnColor != null ? widget.option!.selectedOnColor! : isToday &&
                                         widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,

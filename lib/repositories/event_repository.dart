@@ -41,7 +41,7 @@ class _RuleEvent {
   final int? year;
   final int? offset; // day offset after computing base date
   final String type; // Region/type filter
-  final String title;
+  final Map<String, String> title;
   final bool holiday;
 
   const _RuleEvent({
@@ -57,6 +57,15 @@ class _RuleEvent {
     this.year,
     this.offset,
   });
+
+  String getTitle(String? locale) {
+    final lang = locale ?? 'en';
+    if (title.containsKey(lang)) {
+      final t = title[lang]!;
+      if (t.isNotEmpty) return t;
+    }
+    return title['en'] ?? '';
+  }
 }
 
 class EventRepository {
@@ -176,7 +185,7 @@ class EventRepository {
           year: (m['year'] as num?)?.toInt(),
           offset: (m['offset'] as num?)?.toInt(),
           type: (m['type'] as String?) ?? '',
-          title: (m['title'] as String?) ?? '',
+          title: (m['title'] as Map<String, dynamic>?)?.cast<String, String>() ?? {},
           holiday: (m['holiday'] as bool?) ?? false,
         ));
       }
@@ -208,7 +217,7 @@ class EventRepository {
 
         if (_matchesFixed(e, d)) {
           result.add(ResolvedEvent(
-            title: e.title,
+            title: e.getTitle(null),
             holiday: e.holiday,
             type: e.type,
             calendar: e.calendar,
@@ -225,7 +234,7 @@ class EventRepository {
         final match = _resolveRuleOccurrence(r, d);
         if (match == true) {
           result.add(ResolvedEvent(
-            title: r.title,
+            title: r.getTitle(null),
             holiday: r.holiday,
             type: r.type,
             calendar: r.calendar,

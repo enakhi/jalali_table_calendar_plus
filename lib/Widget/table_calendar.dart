@@ -72,8 +72,26 @@ String _convertToArabicNumbers(int number) {
     '8': '٨',
     '9': '٩',
   };
-  
+
   return number.toString().split('').map((digit) =>
+    englishToArabic[digit] ?? digit
+  ).join('');
+}
+String _convertToArabicNumbersFromString(String number) {
+  const Map<String, String> englishToArabic = {
+    '0': '٠',
+    '1': '١',
+    '2': '٢',
+    '3': '٣',
+    '4': '٤',
+    '5': '٥',
+    '6': '٦',
+    '7': '٧',
+    '8': '٨',
+    '9': '٩',
+  };
+
+  return number.split('').map((digit) =>
     englishToArabic[digit] ?? digit
   ).join('');
 }
@@ -366,7 +384,7 @@ String getDateString(DateTime date, CalendarType calendarType,String lang) {
   switch (calendarType) {
     case CalendarType.jalali:
       Jalali jalali = Jalali.fromDateTime(date);
-      return '${convertNumbersBaseOfLanguge(jalali.year,lang)}/${convertNumbersBaseOfLanguge(jalali.month,lang)}/${convertNumbersBaseOfLanguge(jalali.day,lang)}';
+      return '${convertNumbersBaseOfLanguge(jalali.year,lang)}/${lang == 'fa' ? _convertToPersianNumbersFromString(jalali.month.toString().padLeft(2, '0')) : lang == 'ar' ? _convertToArabicNumbersFromString(jalali.month.toString().padLeft(2, '0')) : jalali.month.toString().padLeft(2, '0')}/${lang == 'fa' ? _convertToPersianNumbersFromString(jalali.day.toString().padLeft(2, '0')) : lang == 'ar' ? _convertToArabicNumbersFromString(jalali.day.toString().padLeft(2, '0')) : jalali.day.toString().padLeft(2, '0')}';
     case CalendarType.hijri:
       HijriCalendar hijri = HijriCalendar.fromDate(date);
       hijri.hYear -= 53; // Adjust for hijri package bug

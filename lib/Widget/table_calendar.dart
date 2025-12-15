@@ -1916,7 +1916,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     style: TextStyle(
                       fontSize: 11,
                       color: styleColor,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       height: 1.45,
                     ),
                   ),

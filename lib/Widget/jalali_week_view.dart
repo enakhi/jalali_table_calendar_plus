@@ -617,6 +617,8 @@ class JalaliWeekViewState extends State<JalaliWeekView> {
                            theme: theme,
                            mainCalendar: widget.mainCalendar,
                            days: days,
+                           language: widget.option?.language ?? 'en',
+                           basedOn: widget.option?.monthTitleBasedOn ?? DayTitleBasedOn.calendar,
                            calendarEvents: widget.calendarEvents ?? const [],
                            dayStartTime: widget.dayStartTime ?? const TimeOfDay(hour: 8, minute: 0),
                            dayEndTime: widget.dayEndTime ?? const TimeOfDay(hour: 20, minute: 0),
@@ -919,6 +921,8 @@ class _WeekTimeGrid extends StatefulWidget {
     required this.theme,
     required this.mainCalendar,
     required this.days,
+    required this.language,
+    required this.basedOn,
     required this.calendarEvents,
     required this.dayStartTime,
     required this.dayEndTime,
@@ -946,6 +950,8 @@ class _WeekTimeGrid extends StatefulWidget {
   final ThemeData theme;
   final CalendarType mainCalendar;
   final List<DateTime> days;
+  final String language;
+  final DayTitleBasedOn basedOn;
   final List<UserEvent> calendarEvents;
   final TimeOfDay dayStartTime;
   final TimeOfDay dayEndTime;
@@ -1295,9 +1301,15 @@ class _WeekTimeGridState extends State<_WeekTimeGrid> {
   String _formatTimeLabel(int minutes) {
     final int h = minutes ~/ 60;
     final int m = minutes % 60;
+    if(widget.basedOn == DayTitleBasedOn.language){
+      final String hh = convertNumbersBaseOfLanguge(h, widget.language).padLeft(2, convertNumbersBaseOfLanguge(0, widget.language));
+    final String mm = convertNumbersBaseOfLanguge(m, widget.language).padLeft(2, convertNumbersBaseOfLanguge(0, widget.language));
+    return '$hh:$mm';
+    }else{
     final String hh = convertNumbers(h, widget.mainCalendar).padLeft(2, convertNumbers(0, widget.mainCalendar));
     final String mm = convertNumbers(m, widget.mainCalendar).padLeft(2, convertNumbers(0, widget.mainCalendar));
     return '$hh:$mm';
+    }
   }
 
   // Compute lane assignment for overlapping events within a day.

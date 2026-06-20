@@ -1543,7 +1543,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                           style: TextStyle(
                             fontSize: 8,
                             color: on,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                             height: 1.5,
                             letterSpacing: -0.0625,
                           ),
@@ -1597,7 +1597,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                   style: TextStyle(
                     color: themeData.colorScheme.onPrimary,
                     fontSize: 9,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -1887,7 +1887,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                                         widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w500,
                                     fontSize: 22,
                                   ) ??
                                   TextStyle(
@@ -1895,7 +1895,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                                         widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w500,
                                     fontSize: 22,
                                   ),
                             )),
@@ -1933,7 +1933,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     style: TextStyle(
                       fontSize: 11,
                       color: styleColor,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       height: 1.45,
                     ),
                   ),
@@ -1975,7 +1975,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                                         widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w500,
                                 fontSize: 22,
                               ) ??
                               TextStyle(
@@ -1983,7 +1983,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                                         widget.option?.todayOnColor != null
                                     ? widget.option!.todayOnColor
                                     : styleColor,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w500,
                                 fontSize: 22,
                               ),
                         )),
@@ -2002,7 +2002,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     style: TextStyle(
                       color: styleColor,
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       height: 1.45,
                     ),
                   ),
@@ -2018,7 +2018,7 @@ class JalaliTableCalendarState extends State<JalaliTableCalendar> {
                     rightCalendarText!,
                     style: TextStyle(
                       color: styleColor,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       fontSize: 11,
                       height: 1.45,
                     ),
